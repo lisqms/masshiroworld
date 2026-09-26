@@ -96,9 +96,9 @@ function makeBMSTable(info, mark, order) {
     return (a.title || "").toString().localeCompare((b.title || "").toString());
   });
 
-  // ヘッダー行：「タイトル + Mocha」に変更
+  // ヘッダー行：IRを 6列 (colspan='6') に変更
   var rows = [
-    "<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='5'>IR</td><td>タイトル + Mocha</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>"
+    "<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='6'>IR</td><td>タイトル + Mocha</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>"
   ];
   var currentLevel = null, levelCount = 0, sepIndex = -1;
 
@@ -126,7 +126,7 @@ function makeBMSTable(info, mark, order) {
 
     var diffStr = item.url_diff ? "<a href='" + item.url_diff + "'>" + cellValue(item.name_diff || item.url_diff) + "</a>" : cellValue(item.name_diff);
 
-    // IR列の1つ目を「LR2IR」に変更し、タイトルリンクを「Mocha (sha256)」に変更
+    // IR列に Kaleid (sha256) を追加（計6列）
     rows.push("<tr class='tr_normal'>" +
       "<td class='text-center'>" + mark + currentLevel + "</td>" +
       "<td class='text-center'>" + videoLink + "</td>" +
@@ -136,6 +136,7 @@ function makeBMSTable(info, mark, order) {
       "<td class='text-center'><a href='https://bms-ir.org/new/song?songmd5=" + item.md5 + "' target='_blank'>BMSIR</a></td>" +
       "<td class='text-center'><a href='https://rianir.link/pages/ranking/ranking.php?sha256=" + item.sha256 + "' target='_blank'>RianIR</a></td>" +
       "<td class='text-center'><a href='https://ir.stellabms.xyz/charts/" + item.md5 + "' target='_blank'>Stella</a></td>" +
+      "<td class='text-center'><a href='https://kaleidir.com/charts/" + item.sha256 + "' target='_blank'>Kaleid</a></td>" +
       "<td><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'>" + cellValue(item.title) + "</a></td>" +
       "<td>" + artistStr + "</td>" +
       "<td>" + diffStr + "</td>" +
@@ -151,7 +152,8 @@ function makeBMSTable(info, mark, order) {
 }
 
 function makeSep(mark, level, count) {
-  return "<tr class='tr_separate'><td colspan='15'><b>" + mark + level + " (" + count + "譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>";
+  // 全体の列数が 16 に増えたため colspan を 16 に変更
+  return "<tr class='tr_separate'><td colspan='16'><b>" + mark + level + " (" + count + "譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>";
 }
 </script>
 
