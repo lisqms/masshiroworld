@@ -180,7 +180,7 @@ function getTotalRateClass(totalRate) {
 }
 
 function makeSeparatorRow(mark, level, count) {
-  return "<tr class='tr_separate'><td colspan='16' align='center'><b>" + mark + level + " (" + count + "譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>";
+  return "<tr class='tr_separate'><td colspan='15' align='center'><b>" + mark + level + " (" + count + "譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>";
 }
 
 function makeBMSTable(info, mark, order) {
@@ -190,7 +190,7 @@ function makeBMSTable(info, mark, order) {
   mark = mark || "";
   order = order || [];
 
-  // header.json の level_order のインデックスに基づいて強力にソート
+  // header.json の level_order に基づくソート
   var orderMap = {};
   for (var i = 0; i < order.length; i++) {
     orderMap[order[i].toString()] = i;
@@ -207,7 +207,6 @@ function makeBMSTable(info, mark, order) {
       return aIndex - bIndex;
     }
 
-    // 同じレベル内ではタイトル順
     var aTitle = (a["title"] || "").toString().toLowerCase();
     var bTitle = (b["title"] || "").toString().toLowerCase();
     if (aTitle < bTitle) return -1;
@@ -220,8 +219,22 @@ function makeBMSTable(info, mark, order) {
   var levelCount = 0;
   var sepIndex = -1;
 
-  // ヘッダー行
-  rows.push("<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='6'>IR</td><td>タイトル + LR2IR</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>");
+  // ヘッダー行（15列）
+  rows.push(
+    "<tr class='header-row'>" +
+      "<td>LV</td>" +
+      "<td>動画</td>" +
+      "<td>譜面</td>" +
+      "<td colspan='5'>IR</td>" +
+      "<td>タイトル + LR2IR</td>" +
+      "<td>本体</td>" +
+      "<td>差分</td>" +
+      "<td>Notes</td>" +
+      "<td>TOTAL(+増加率)</td>" +
+      "<td>memo</td>" +
+      "<td>コメント</td>" +
+    "</tr>"
+  );
 
   for (var i = 0; i < info.length; i++) {
     var item = info[i];
@@ -259,7 +272,7 @@ function makeBMSTable(info, mark, order) {
       row.push("<td></td>");
     }
 
-    // IR・リンク等
+    // 譜面・IR (5列)
     row.push("<td class='text-center'><a href='https://bms-score-viewer.pages.dev/view?md5=" + item.md5 + "' target='_blank'>♪</a></td>");
     row.push("<td class='text-center'><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'>Mocha</a></td>");
     row.push("<td class='text-center'><a href='https://www.gaftalk.com/minir/#/viewer/song/" + item.sha256 + "/0' target='_blank'>MinIR</a></td>");
