@@ -95,8 +95,7 @@ function makeBMSTable(info, mark, order) {
     if (aIndex !== bIndex) return aIndex - bIndex;
     return (a.title || "").toString().localeCompare((b.title || "").toString());
   });
-
-  // ヘッダー行：IRを 6列 (colspan='6') に変更
+  
   var rows = [
     "<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='6'>IR</td><td>タイトル + Mocha</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>"
   ];
@@ -126,16 +125,15 @@ function makeBMSTable(info, mark, order) {
 
     var diffStr = item.url_diff ? "<a href='" + item.url_diff + "'>" + cellValue(item.name_diff || item.url_diff) + "</a>" : cellValue(item.name_diff);
 
-    // IR列に Kaleid (sha256) を追加（計6列）
     rows.push("<tr class='tr_normal'>" +
       "<td class='text-center'>" + mark + currentLevel + "</td>" +
       "<td class='text-center'>" + videoLink + "</td>" +
       "<td class='text-center'><a href='https://bms-score-viewer.pages.dev/view?md5=" + item.md5 + "' target='_blank'>♪</a></td>" +
       "<td class='text-center'><a href='https://lr2ir.com/charts/" + item.md5 + "' target='_blank'>LR2IR</a></td>" +
       "<td class='text-center'><a href='https://www.gaftalk.com/minir/#/viewer/song/" + item.sha256 + "/0' target='_blank'>MinIR</a></td>" +
-      "<td class='text-center'><a href='https://bms-ir.org/new/song?songmd5=" + item.md5 + "' target='_blank'>BMSIR</a></td>" +
+      "<td class='text-center'><a href='https://bms-ir.org/new/song?songmd5=" + item.md5 + "' target='_blank'>BMS-IR</a></td>" +
       "<td class='text-center'><a href='https://rianir.link/pages/ranking/ranking.php?sha256=" + item.sha256 + "' target='_blank'>RianIR</a></td>" +
-      "<td class='text-center'><a href='https://ir.stellabms.xyz/charts/" + item.md5 + "' target='_blank'>Stella</a></td>" +
+      "<td class='text-center'><a href='https://ir.stellabms.xyz/charts/" + item.md5 + "' target='_blank'>STELLA</a></td>" +
       "<td class='text-center'><a href='https://kaleidir.com/charts/" + item.sha256 + "' target='_blank'>Kaleid</a></td>" +
       "<td><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'>" + cellValue(item.title) + "</a></td>" +
       "<td>" + artistStr + "</td>" +
@@ -152,7 +150,6 @@ function makeBMSTable(info, mark, order) {
 }
 
 function makeSep(mark, level, count) {
-  // 全体の列数が 16 に増えたため colspan を 16 に変更
   return "<tr class='tr_separate'><td colspan='16'><b>" + mark + level + " (" + count + "譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>";
 }
 </script>
