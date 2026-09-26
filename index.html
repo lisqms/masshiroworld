@@ -15,11 +15,25 @@
     .level-jump a { margin-right: 8px; display: inline-block; }
     .tableflame { width: 100%; overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
+    
+    /* エラー表示用のスタイル */
+    #error-display {
+      display: none;
+      background-color: #fff0f0;
+      border: 2px solid #ff0000;
+      color: #cc0000;
+      padding: 15px;
+      margin-bottom: 15px;
+      border-radius: 5px;
+    }
+    #error-display h3 { margin-top: 0; }
   </style>
 </head>
 <body>
 
 <div id="container">
+
+  <div id="error-display"></div>
 
   <div id="level-jump" class="level-jump"></div>
 
@@ -33,17 +47,50 @@
 // TOTAL(+増加率)欄の文字色を使用するか
 var ENABLE_TOTAL_RATE_COLOR = true;
 
+// エラー出力用関数
+function showError(msg) {
+  $("#error-display").html("<h3>⚠️ 難易度表の読み込みエラー</h3>" + msg).show();
+}
+
 $(document).ready(function(){
-  $.getJSON($("meta[name=bmstable]").attr("content"), function(header){
-    $.getJSON(header.data_url, function(information){
-      // headerのsort有無で分岐
-      if(header["level_order"]){
-        makeBMSTable(information, header.symbol, header["level_order"]);
-      } else {
-        makeBMSTable(information, header.symbol);
+  var headerPath = $("meta[name=bmstable]").attr("content");
+  
+  if (!headerPath) {
+    showError("<code>&lt;meta name=\"bmstable\" ...&gt;</code> タグが見つからないか、指定されていません。");
+    return;
+  }
+
+  // 1. header.json の取得
+  $.getJSON(headerPath)
+    .done(function(header){
+      if (!header.data_url) {
+        showError("<code>" + headerPath + "</code> 内に <code>data_url</code> の指定がありません。");
+        return;
       }
+
+      // 2. 楽曲データ(score.json等) の取得
+      $.getJSON(header.data_url)
+        .done(function(information){
+          try {
+            if (header["level_order"]) {
+              makeBMSTable(information, header.symbol, header["level_order"]);
+            } else {
+              makeBMSTable(information, header.symbol);
+            }
+          } catch (e) {
+            showError("表の生成スクリプト（JS）の実行中にエラーが発生しました。<br>詳細: " + e.message);
+          }
+        })
+        .fail(function(jqXHR, textStatus, errorThrown){
+          var detail = "ファイルが存在しない(404)か、JSON構文エラー（カンマのミスや全角等）の可能性があります。";
+          showError("曲データ <code>" + header.data_url + "</code> の読み込みに失敗しました。<br>" + detail);
+        });
+
+    })
+    .fail(function(jqXHR, textStatus, errorThrown){
+      var detail = "ファイルが存在しない(404)か、JSON構文エラー（カンマのミスや全角等）の可能性があります。";
+      showError("ヘッダーファイル <code>" + headerPath + "</code> の読み込みに失敗しました。<br>" + detail);
     });
-  });
 });
 
 // レベル見出し用ID生成
@@ -183,22 +230,22 @@ function makeBMSTable(info, mark, order) {
 
     // 動画
     if(hasValue(item.video1)){
-      row.push("<td width='1.2%' align='center'><a href='http://www.nicovideo.jp/watch/sm" + item.video1 + "' target='_blank'><img src='style/nico.gif' border='0' alt='ニコニコ' /></a></td>");
+      row.push("<td width='1.2%' align='center'><a href='http://www.nicovideo.jp/watch/sm" + item.video1 + "' target='_blank'>ニコ</a></td>");
     } else if(hasValue(item.video2)){
-      row.push("<td width='1.2%' align='center'><a href='http://www.youtube.com/watch?v=" + item.video2 + "' target='_blank'><img src='style/youtube.gif' border='0' alt='Youtube' /></a></td>");
+      row.push("<td width='1.2%' align='center'><a href='http://www.youtube.com/watch?v=" + item.video2 + "' target='_blank'>YT</a></td>");
     } else if(hasValue(item.video3)){
-      row.push("<td width='1.2%' align='center'><a href='http://vimeo.com/" + item.video3 + "' target='_blank'><img src='style/vimeo.gif' border='0' alt='vimeo' /></a></td>");
+      row.push("<td width='1.2%' align='center'><a href='http://vimeo.com/" + item.video3 + "' target='_blank'>Vimeo</a></td>");
     } else {
       row.push("<td width='1.2%'></td>");
     }
 
     // 譜面画像・各種IR
     row.push("<td width='1.2%' align='center'><a href='https://bms-score-viewer.pages.dev/view?md5=" + item.md5 + "' target='_blank'>♪</a></td>");
-    row.push("<td width='1.2%' align='center'><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'><img src='style/mochair_logo.gif' border='0' alt='Mocha' /></a></td>");
-    row.push("<td width='1.2%' align='center'><a href='https://www.gaftalk.com/minir/#/viewer/song/" + item.sha256 + "/0' target='_blank'><img src='style/minir_logo.gif' border='0' /></a></td>");
-    row.push("<td width='1.2%' align='center'><a href='https://bms-ir.org/new/song?songmd5=" + item.md5 + "' target='_blank'><img src='style/bmsir_logo.gif' border='0' /></a></td>");
-    row.push("<td width='1.2%' align='center'><a href='https://rianir.link/pages/ranking/ranking.php?sha256=" + item.sha256 + "' target='_blank'><img src='style/rianir_logo.gif' border='0' /></a></td>");
-    row.push("<td width='1.2%' align='center'><a href='https://ir.stellabms.xyz/charts/" + item.md5 + "' target='_blank'><img src='style/stellaverseir_logo.gif' border='0' /></a></td>");
+    row.push("<td width='1.2%' align='center'><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'>Mocha</a></td>");
+    row.push("<td width='1.2%' align='center'><a href='https://www.gaftalk.com/minir/#/viewer/song/" + item.sha256 + "/0' target='_blank'>MinIR</a></td>");
+    row.push("<td width='1.2%' align='center'><a href='https://bms-ir.org/new/song?songmd5=" + item.md5 + "' target='_blank'>BMSIR</a></td>");
+    row.push("<td width='1.2%' align='center'><a href='https://rianir.link/pages/ranking/ranking.php?sha256=" + item.sha256 + "' target='_blank'>RianIR</a></td>");
+    row.push("<td width='1.2%' align='center'><a href='https://ir.stellabms.xyz/charts/" + item.md5 + "' target='_blank'>Stella</a></td>");
 
     // タイトル
     row.push("<td width='15%'><a href='https://lr2ir.com/charts/" + item.md5 + "' target='_blank'>" + cellValue(item.title) + "</a></td>");
