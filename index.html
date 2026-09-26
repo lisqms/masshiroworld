@@ -4,90 +4,24 @@
   <meta charset="utf-8">
   <title>PMS仮難易度表</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  
   <meta name="bmstable" content="header.json" />
-  
   <script src="https://code.jquery.com/jquery-2.0.2.min.js"></script>
-  
+
   <style>
-    /* 全体設定 */
-    body {
-      background-color: #f8f9fa;
-      color: #333333;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      margin: 15px;
-      font-size: 14px;
-    }
-
-    /* リンク色設定 */
-    a {
-      color: #0056b3;
-      text-decoration: none;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
-
-    /* エラー表示 */
-    #error-display {
-      display: none;
-      background-color: #f8d7da;
-      border: 1px solid #f5c6cb;
-      color: #721c24;
-      padding: 15px;
-      margin-bottom: 20px;
-      border-radius: 4px;
-    }
-    #error-display h3 { margin: 0 0 5px 0; }
-
-    /* テーブルデザイン */
-    .tableflame {
-      width: 100%;
-      overflow-x: auto;
-      background: #ffffff;
-      border-radius: 6px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-    th, td {
-      border: 1px solid #e9ecef;
-      padding: 6px 8px;
-      text-align: left;
-    }
-    
-    /* ヘッダー行 */
-    .header-row {
-      background-color: #343a40 !important;
-      color: #ffffff;
-      font-weight: bold;
-      text-align: center;
-    }
-
-    /* 難易度区切り行 */
-    .tr_separate {
-      background-color: #e9ecef;
-      font-weight: bold;
-      font-size: 14px;
-    }
-    .tr_separate td {
-      padding: 8px;
-      border-top: 2px solid #dee2e6;
-      border-bottom: 2px solid #dee2e6;
-    }
-
-    /* データ行（ホバーで色付け） */
-    .tr_normal:nth-child(even) { background-color: #ffffff; }
-    .tr_normal:nth-child(odd) { background-color: #f8f9fa; }
-    .tr_normal:hover { background-color: #e2e6ea; }
-
-    /* 中央寄せ項目 */
+    body { background: #f8f9fa; color: #333; font-family: sans-serif; margin: 15px; font-size: 14px; }
+    a { color: #0056b3; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    #error-display { display: none; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 12px; margin-bottom: 15px; border-radius: 4px; }
+    .tableflame { width: 100%; overflow-x: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { border: 1px solid #e9ecef; padding: 6px 8px; text-align: left; }
+    .header-row { background: #343a40; color: #fff; font-weight: bold; text-align: center; }
+    .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; }
+    .tr_separate td { padding: 8px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; }
+    .tr_normal:nth-child(even) { background: #fff; }
+    .tr_normal:nth-child(odd) { background: #f8f9fa; }
+    .tr_normal:hover { background: #e2e6ea; }
     .text-center { text-align: center; }
-
-    /* TOTAL増加率のカラー表示 */
     .total-rate-red-bold { color: #dc3545; font-weight: bold; }
     .total-rate-red { color: #dc3545; }
     .total-rate-blue { color: #0d6efd; }
@@ -97,231 +31,108 @@
 <body>
 
 <div id="container">
-
-  <!-- エラーメッセージ表示エリア -->
   <div id="error-display"></div>
-
-  <!-- 表エリア -->
   <div class="tableflame">
     <table id="table_int"></table>
   </div>
-
 </div>
 
 <script type="text/javascript">
-var ENABLE_TOTAL_RATE_COLOR = true;
-
 function showError(msg) {
-  $("#error-display").html("<h3>⚠️ 難易度表の読み込みエラー</h3>" + msg).show();
+  $("#error-display").html("<h3>⚠️ エラー</h3>" + msg).show();
 }
 
 $(document).ready(function(){
   var headerPath = $("meta[name=bmstable]").attr("content");
-  
-  if (!headerPath) {
-    showError("<code>&lt;meta name=\"bmstable\" ...&gt;</code> タグが見つかりません。");
-    return;
-  }
+  if (!headerPath) return showError("&lt;meta name=\"bmstable\"&gt; がありません。");
 
-  $.getJSON(headerPath)
-    .done(function(header){
-      if (!header.data_url) {
-        showError("<code>" + headerPath + "</code> 内に <code>data_url</code> の指定がありません。");
-        return;
-      }
-
-      $.getJSON(header.data_url)
-        .done(function(information){
-          try {
-            makeBMSTable(information, header.symbol, header["level_order"]);
-          } catch (e) {
-            showError("表の生成中にエラーが発生しました。<br>詳細: " + e.message);
-          }
-        })
-        .fail(function(){
-          showError("曲データ <code>" + header.data_url + "</code> の読み込みに失敗しました。");
-        });
-
-    })
-    .fail(function(){
-      showError("ヘッダーファイル <code>" + headerPath + "</code> の読み込みに失敗しました。");
-    });
+  $.getJSON(headerPath).done(function(header){
+    if (!header.data_url) return showError("data_url が指定されていません。");
+    $.getJSON(header.data_url).done(function(info){
+      makeBMSTable(info, header.symbol || "", header.level_order || []);
+    }).fail(function(){ showError("曲データの読み込みに失敗しました。"); });
+  }).fail(function(){ showError("ヘッダーファイルの読み込みに失敗しました。"); });
 });
 
-function hasValue(value) { return value != "" && value != null; }
-function cellValue(value) { return value == null ? "" : value; }
+function cellValue(v) { return v == null ? "" : v; }
 
-function getTotalRate(item) {
-  if(!hasValue(item.total) || !hasValue(item.notes)) { return NaN; }
-  var total = Number(item.total);
-  var notes = Number(item.notes);
-  if(!isFinite(total) || !isFinite(notes) || notes <= 0) { return NaN; }
-  return total / notes;
-}
-
-function formatTotalRate(totalRate) {
-  return Math.round((totalRate + 1e-12) * 1000) / 1000;
-}
-
-function getTotalDisplay(item, totalRate) {
-  var total = cellValue(item.total);
-  if(!hasValue(total)) { return ""; }
-  if(!isFinite(totalRate)) { return total; }
-  return total + " (" + formatTotalRate(totalRate) + "%/note)";
-}
-
-function getTotalRateClass(totalRate) {
-  if(!ENABLE_TOTAL_RATE_COLOR || !isFinite(totalRate)) { return ""; }
-  if(totalRate <= 0.1) { return "total-rate-red-bold"; }
-  if(totalRate < 0.2) { return "total-rate-red"; }
-  if(totalRate < 0.3) { return ""; }
-  if(totalRate < 0.4) { return "total-rate-blue"; }
-  return "total-rate-blue-bold";
-}
-
-function makeSeparatorRow(mark, level, count) {
-  return "<tr class='tr_separate'><td colspan='15' align='center'><b>" + mark + level + " (" + count + "譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>";
+function getTotalDisplay(item) {
+  if (!item.total || !item.notes) return cellValue(item.total);
+  var total = Number(item.total), notes = Number(item.notes);
+  if (!isFinite(total) || !isFinite(notes) || notes <= 0) return cellValue(item.total);
+  var rate = total / notes;
+  var cls = rate <= 0.1 ? "total-rate-red-bold" : rate < 0.2 ? "total-rate-red" : rate < 0.4 ? "total-rate-blue" : "total-rate-blue-bold";
+  return '<span class="' + cls + '">' + total + ' (' + (Math.round((rate + 1e-12) * 1000) / 1000) + '%/note)</span>';
 }
 
 function makeBMSTable(info, mark, order) {
   var table = document.getElementById("table_int");
-  if (!table) { return; }
+  if (!table) return;
 
-  mark = mark || "";
-  order = order || [];
-
-  // header.json の level_order に基づくソート
   var orderMap = {};
-  for (var i = 0; i < order.length; i++) {
-    orderMap[order[i].toString()] = i;
-  }
+  for (var i = 0; i < order.length; i++) orderMap[order[i].toString()] = i;
 
   info.sort(function(a, b) {
-    var aLv = (a["level"] != null) ? a["level"].toString() : "";
-    var bLv = (b["level"] != null) ? b["level"].toString() : "";
-
-    var aIndex = (orderMap.hasOwnProperty(aLv)) ? orderMap[aLv] : 99999;
-    var bIndex = (orderMap.hasOwnProperty(bLv)) ? orderMap[bLv] : 99999;
-
-    if (aIndex !== bIndex) {
-      return aIndex - bIndex;
-    }
-
-    var aTitle = (a["title"] || "").toString().toLowerCase();
-    var bTitle = (b["title"] || "").toString().toLowerCase();
-    if (aTitle < bTitle) return -1;
-    if (aTitle > bTitle) return 1;
-    return 0;
+    var aIndex = orderMap.hasOwnProperty(a.level) ? orderMap[a.level] : 99999;
+    var bIndex = orderMap.hasOwnProperty(b.level) ? orderMap[b.level] : 99999;
+    if (aIndex !== bIndex) return aIndex - bIndex;
+    return (a.title || "").toString().localeCompare((b.title || "").toString());
   });
 
-  var rows = [];
-  var currentLevel = null;
-  var levelCount = 0;
-  var sepIndex = -1;
-
-  // ヘッダー行（15列）
-  rows.push(
-    "<tr class='header-row'>" +
-      "<td>LV</td>" +
-      "<td>動画</td>" +
-      "<td>譜面</td>" +
-      "<td colspan='5'>IR</td>" +
-      "<td>タイトル + LR2IR</td>" +
-      "<td>本体</td>" +
-      "<td>差分</td>" +
-      "<td>Notes</td>" +
-      "<td>TOTAL(+増加率)</td>" +
-      "<td>memo</td>" +
-      "<td>コメント</td>" +
-    "</tr>"
-  );
+  var rows = [
+    "<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='5'>IR</td><td>タイトル + LR2IR</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>"
+  ];
+  var currentLevel = null, levelCount = 0, sepIndex = -1;
 
   for (var i = 0; i < info.length; i++) {
     var item = info[i];
-    var itemLevel = (item.level != null) ? item.level.toString() : "";
+    var itemLevel = cellValue(item.level).toString();
 
     if (currentLevel !== itemLevel) {
-      if (sepIndex >= 0) {
-        rows[sepIndex] = makeSeparatorRow(mark, currentLevel, levelCount);
-      }
+      if (sepIndex >= 0) rows[sepIndex] = makeSep(mark, currentLevel, levelCount);
       currentLevel = itemLevel;
       levelCount = 0;
       sepIndex = rows.length;
-      rows.push(makeSeparatorRow(mark, currentLevel, 0));
+      rows.push("");
     }
-
     levelCount++;
 
-    var rowClass = "tr_normal";
-    if (hasValue(item.state)) {
-      rowClass += " state" + item.state;
+    var videoLink = item.video1 ? "<a href='http://www.nicovideo.jp/watch/sm" + item.video1 + "' target='_blank'>ニコ</a>" :
+                    item.video2 ? "<a href='http://www.youtube.com/watch?v=" + item.video2 + "' target='_blank'>YT</a>" :
+                    item.video3 ? "<a href='http://vimeo.com/" + item.video3 + "' target='_blank'>Vimeo</a>" : "";
+
+    var artistStr = item.url ? "<a href='" + item.url + "'>" + cellValue(item.artist || item.url) + "</a>" : cellValue(item.artist);
+    if (item.name_pack || item.url_pack) {
+      artistStr += "<br />(" + (item.url_pack ? "<a href='" + item.url_pack + "'>" + cellValue(item.name_pack || item.url_pack) + "</a>" : item.name_pack) + ")";
     }
 
-    var row = [];
-    row.push("<tr class='" + rowClass + "'>");
-    row.push("<td class='text-center'>" + mark + currentLevel + "</td>");
+    var diffStr = item.url_diff ? "<a href='" + item.url_diff + "'>" + cellValue(item.name_diff || item.url_diff) + "</a>" : cellValue(item.name_diff);
 
-    // 動画
-    if (hasValue(item.video1)) {
-      row.push("<td class='text-center'><a href='http://www.nicovideo.jp/watch/sm" + item.video1 + "' target='_blank'>ニコ</a></td>");
-    } else if (hasValue(item.video2)) {
-      row.push("<td class='text-center'><a href='http://www.youtube.com/watch?v=" + item.video2 + "' target='_blank'>YT</a></td>");
-    } else if (hasValue(item.video3)) {
-      row.push("<td class='text-center'><a href='http://vimeo.com/" + item.video3 + "' target='_blank'>Vimeo</a></td>");
-    } else {
-      row.push("<td></td>");
-    }
-
-    // 譜面・IR (5列)
-    row.push("<td class='text-center'><a href='https://bms-score-viewer.pages.dev/view?md5=" + item.md5 + "' target='_blank'>♪</a></td>");
-    row.push("<td class='text-center'><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'>Mocha</a></td>");
-    row.push("<td class='text-center'><a href='https://www.gaftalk.com/minir/#/viewer/song/" + item.sha256 + "/0' target='_blank'>MinIR</a></td>");
-    row.push("<td class='text-center'><a href='https://bms-ir.org/new/song?songmd5=" + item.md5 + "' target='_blank'>BMSIR</a></td>");
-    row.push("<td class='text-center'><a href='https://rianir.link/pages/ranking/ranking.php?sha256=" + item.sha256 + "' target='_blank'>RianIR</a></td>");
-    row.push("<td class='text-center'><a href='https://ir.stellabms.xyz/charts/" + item.md5 + "' target='_blank'>Stella</a></td>");
-
-    // タイトル
-    row.push("<td><a href='https://lr2ir.com/charts/" + item.md5 + "' target='_blank'>" + cellValue(item.title) + "</a></td>");
-
-    // アーティスト
-    var astr = "";
-    if (hasValue(item.url)) {
-      astr = "<a href='" + item.url + "'>" + (hasValue(item.artist) ? item.artist : item.url) + "</a>";
-    } else if (hasValue(item.artist)) {
-      astr = item.artist;
-    }
-    if (hasValue(item.url_pack)) {
-      astr += "<br />(<a href='" + item.url_pack + "'>" + (hasValue(item.name_pack) ? item.name_pack : item.url_pack) + "</a>)";
-    } else if (hasValue(item.name_pack)) {
-      astr += "<br />(" + item.name_pack + ")";
-    }
-    row.push("<td>" + astr + "</td>");
-
-    // 差分
-    if (hasValue(item.url_diff)) {
-      row.push("<td><a href='" + item.url_diff + "'>" + (hasValue(item.name_diff) ? item.name_diff : item.url_diff) + "</a></td>");
-    } else {
-      row.push("<td>" + cellValue(item.name_diff) + "</td>");
-    }
-
-    // Notes / TOTAL / memo / コメント
-    row.push("<td class='text-center'>" + cellValue(item.notes) + "</td>");
-    var totalRate = getTotalRate(item);
-    var totalRateClass = getTotalRateClass(totalRate);
-    var totalClassAttribute = totalRateClass ? " class='" + totalRateClass + "'" : "";
-    row.push("<td" + totalClassAttribute + ">" + getTotalDisplay(item, totalRate) + "</td>");
-    row.push("<td>" + cellValue(item.memo) + "</td>");
-    row.push("<td>" + cellValue(item.comment) + "</td>");
-
-    row.push("</tr>");
-    rows.push(row.join(""));
+    rows.push("<tr class='tr_normal'>" +
+      "<td class='text-center'>" + mark + currentLevel + "</td>" +
+      "<td class='text-center'>" + videoLink + "</td>" +
+      "<td class='text-center'><a href='https://bms-score-viewer.pages.dev/view?md5=" + item.md5 + "' target='_blank'>♪</a></td>" +
+      "<td class='text-center'><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'>Mocha</a></td>" +
+      "<td class='text-center'><a href='https://www.gaftalk.com/minir/#/viewer/song/" + item.sha256 + "/0' target='_blank'>MinIR</a></td>" +
+      "<td class='text-center'><a href='https://bms-ir.org/new/song?songmd5=" + item.md5 + "' target='_blank'>BMSIR</a></td>" +
+      "<td class='text-center'><a href='https://rianir.link/pages/ranking/ranking.php?sha256=" + item.sha256 + "' target='_blank'>RianIR</a></td>" +
+      "<td class='text-center'><a href='https://ir.stellabms.xyz/charts/" + item.md5 + "' target='_blank'>Stella</a></td>" +
+      "<td><a href='https://lr2ir.com/charts/" + item.md5 + "' target='_blank'>" + cellValue(item.title) + "</a></td>" +
+      "<td>" + artistStr + "</td>" +
+      "<td>" + diffStr + "</td>" +
+      "<td class='text-center'>" + cellValue(item.notes) + "</td>" +
+      "<td>" + getTotalDisplay(item) + "</td>" +
+      "<td>" + cellValue(item.memo) + "</td>" +
+      "<td>" + cellValue(item.comment) + "</td>" +
+    "</tr>");
   }
 
-  if (sepIndex >= 0) {
-    rows[sepIndex] = makeSeparatorRow(mark, currentLevel, levelCount);
-  }
-
+  if (sepIndex >= 0) rows[sepIndex] = makeSep(mark, currentLevel, levelCount);
   table.innerHTML = rows.join("");
+}
+
+function makeSep(mark, level, count) {
+  return "<tr class='tr_separate'><td colspan='15'><b>" + mark + level + " (" + count + "譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>";
 }
 </script>
 
