@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <!-- キャッシュ無効化タグを追加 -->
+  <!-- HTML・CSS用 キャッシュ無効化タグ -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -47,6 +47,9 @@ function showError(msg) {
 }
 
 $(document).ready(function(){
+  // JSON読み込みのキャッシュを無効化（1）
+  $.ajaxSetup({ cache: false });
+
   var headerPath = $("meta[name=bmstable]").attr("content");
   if (!headerPath) return showError("&lt;meta name=\"bmstable\"&gt; がありません。");
 
