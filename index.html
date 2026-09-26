@@ -133,11 +133,7 @@ $(document).ready(function(){
       $.getJSON(header.data_url)
         .done(function(information){
           try {
-            if (header["level_order"]) {
-              makeBMSTable(information, header.symbol, header["level_order"]);
-            } else {
-              makeBMSTable(information, header.symbol);
-            }
+            makeBMSTable(information, header.symbol, header["level_order"]);
           } catch (e) {
             showError("表の生成中にエラーが発生しました。<br>詳細: " + e.message);
           }
@@ -151,23 +147,6 @@ $(document).ready(function(){
       showError("ヘッダーファイル <code>" + headerPath + "</code> の読み込みに失敗しました。");
     });
 });
-
-function getLevelAnchorId(level, order, fallbackNumber, usedIds) {
-  var number = fallbackNumber;
-  if(order != "" && order != null){
-    for(var i = 0; i < order.length; i++){
-      if(order[i].toString() == level.toString()){
-        number = i + 1;
-        break;
-      }
-    }
-  }
-  while(usedIds["level-" + number]){
-    number++;
-  }
-  usedIds["level-" + number] = true;
-  return "level-" + number;
-}
 
 function hasValue(value) { return value != "" && value != null; }
 function cellValue(value) { return value == null ? "" : value; }
@@ -200,98 +179,87 @@ function getTotalRateClass(totalRate) {
   return "total-rate-blue-bold";
 }
 
-function makeSeparatorRow(mark, level, count, sepId) {
-  return "<tr class='tr_separate' id='" + sepId + "'><td colspan='16' align='center'><b>" + mark + level + " (" + count + "譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>";
+function makeSeparatorRow(mark, level, count) {
+  return "<tr class='tr_separate'><td colspan='16' align='center'><b>" + mark + level + " (" + count + "譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>";
 }
 
 function makeBMSTable(info, mark, order) {
-  if(typeof order === 'undefined'){ order = null; }
-
-  var x = "";
-  var count = 0;
-  var levelAnchorCount = 0;
-  var usedLevelIds = {};
   var table = document.getElementById("table_int");
-
   if (!table) { return; }
 
-  // ソート処理
-  if(order != "" && order != null){
-    var orderAry = [];
-    for(var l = 0; l < order.length; l++){
-      orderAry.push(order[l].toString());
-    }
-    for(var j = 0; j < info.length; j++){
-      var index = orderAry.indexOf(info[j]["level"]);
-      info[j]["_index"] = index;
-    }
-    info.sort(function(a,b){
-      if(a["_index"] < b["_index"]){ return -1; }
-      else if(a["_index"] > b["_index"]){ return 1; }
-      else if( a["title"].toLowerCase() < b["title"].toLowerCase() ){ return -1; }
-      else if( a["title"].toLowerCase() > b["title"].toLowerCase() ){ return 1; }
-      else { return 0; }
-    });
-    for(var k=0; k < info.length; k++){
-      delete info[k]["_index"];
-    }
-  } else {
-    info.sort(function(a,b){
-      var aLv = a["level"].toString();
-      var bLv = b["level"].toString();
-      if(isNaN(a["level"]) == false && isNaN(b["level"]) == false){
-        return a["level"]-b["level"];
-      } else if( aLv < bLv ){ return -1; }
-      else if( aLv > bLv ){ return 1; }
-      else if( a["title"].toLowerCase() < b["title"].toLowerCase() ){ return -1; }
-      else if( a["title"].toLowerCase() > b["title"].toLowerCase() ){ return 1; }
-      else { return 0; }
-    });
+  mark = mark || "";
+  order = order || [];
+
+  // header.json の level_order のインデックスに基づいて強力にソート
+  var orderMap = {};
+  for (var i = 0; i < order.length; i++) {
+    orderMap[order[i].toString()] = i;
   }
 
-  var rows = [];
-  var sepIndex = -1;
-  var sepId = "";
+  info.sort(function(a, b) {
+    var aLv = (a["level"] != null) ? a["level"].toString() : "";
+    var bLv = (b["level"] != null) ? b["level"].toString() : "";
 
-  // 表のヘッダー行
+    var aIndex = (orderMap.hasOwnProperty(aLv)) ? orderMap[aLv] : 99999;
+    var bIndex = (orderMap.hasOwnProperty(bLv)) ? orderMap[bLv] : 99999;
+
+    if (aIndex !== bIndex) {
+      return aIndex - bIndex;
+    }
+
+    // 同じレベル内ではタイトル順
+    var aTitle = (a["title"] || "").toString().toLowerCase();
+    var bTitle = (b["title"] || "").toString().toLowerCase();
+    if (aTitle < bTitle) return -1;
+    if (aTitle > bTitle) return 1;
+    return 0;
+  });
+
+  var rows = [];
+  var currentLevel = null;
+  var levelCount = 0;
+  var sepIndex = -1;
+
+  // ヘッダー行
   rows.push("<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='6'>IR</td><td>タイトル + LR2IR</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>");
 
   for (var i = 0; i < info.length; i++) {
     var item = info[i];
+    var itemLevel = (item.level != null) ? item.level.toString() : "";
 
-    if (x != item.level) {
+    if (currentLevel !== itemLevel) {
       if (sepIndex >= 0) {
-        rows[sepIndex] = makeSeparatorRow(mark, x, count, sepId);
+        rows[sepIndex] = makeSeparatorRow(mark, currentLevel, levelCount);
       }
-      levelAnchorCount++;
-      sepId = getLevelAnchorId(item.level, order, levelAnchorCount, usedLevelIds);
+      currentLevel = itemLevel;
+      levelCount = 0;
       sepIndex = rows.length;
-      rows.push(makeSeparatorRow(mark, item.level, 0, sepId));
-      count = 0;
-      x = item.level;
+      rows.push(makeSeparatorRow(mark, currentLevel, 0));
     }
 
+    levelCount++;
+
     var rowClass = "tr_normal";
-    if(hasValue(item.state)) {
+    if (hasValue(item.state)) {
       rowClass += " state" + item.state;
     }
 
     var row = [];
     row.push("<tr class='" + rowClass + "'>");
-    row.push("<td class='text-center'>" + mark + x + "</td>");
+    row.push("<td class='text-center'>" + mark + currentLevel + "</td>");
 
     // 動画
-    if(hasValue(item.video1)){
+    if (hasValue(item.video1)) {
       row.push("<td class='text-center'><a href='http://www.nicovideo.jp/watch/sm" + item.video1 + "' target='_blank'>ニコ</a></td>");
-    } else if(hasValue(item.video2)){
+    } else if (hasValue(item.video2)) {
       row.push("<td class='text-center'><a href='http://www.youtube.com/watch?v=" + item.video2 + "' target='_blank'>YT</a></td>");
-    } else if(hasValue(item.video3)){
+    } else if (hasValue(item.video3)) {
       row.push("<td class='text-center'><a href='http://vimeo.com/" + item.video3 + "' target='_blank'>Vimeo</a></td>");
     } else {
       row.push("<td></td>");
     }
 
-    // 譜面画像・各種IR
+    // IR・リンク等
     row.push("<td class='text-center'><a href='https://bms-score-viewer.pages.dev/view?md5=" + item.md5 + "' target='_blank'>♪</a></td>");
     row.push("<td class='text-center'><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'>Mocha</a></td>");
     row.push("<td class='text-center'><a href='https://www.gaftalk.com/minir/#/viewer/song/" + item.sha256 + "/0' target='_blank'>MinIR</a></td>");
@@ -304,20 +272,20 @@ function makeBMSTable(info, mark, order) {
 
     // アーティスト
     var astr = "";
-    if(hasValue(item.url)) {
+    if (hasValue(item.url)) {
       astr = "<a href='" + item.url + "'>" + (hasValue(item.artist) ? item.artist : item.url) + "</a>";
-    } else if(hasValue(item.artist)) {
+    } else if (hasValue(item.artist)) {
       astr = item.artist;
     }
-    if(hasValue(item.url_pack)) {
+    if (hasValue(item.url_pack)) {
       astr += "<br />(<a href='" + item.url_pack + "'>" + (hasValue(item.name_pack) ? item.name_pack : item.url_pack) + "</a>)";
-    } else if(hasValue(item.name_pack)) {
+    } else if (hasValue(item.name_pack)) {
       astr += "<br />(" + item.name_pack + ")";
     }
     row.push("<td>" + astr + "</td>");
 
     // 差分
-    if(hasValue(item.url_diff)) {
+    if (hasValue(item.url_diff)) {
       row.push("<td><a href='" + item.url_diff + "'>" + (hasValue(item.name_diff) ? item.name_diff : item.url_diff) + "</a></td>");
     } else {
       row.push("<td>" + cellValue(item.name_diff) + "</td>");
@@ -334,11 +302,10 @@ function makeBMSTable(info, mark, order) {
 
     row.push("</tr>");
     rows.push(row.join(""));
-    count++;
   }
 
   if (sepIndex >= 0) {
-    rows[sepIndex] = makeSeparatorRow(mark, x, count, sepId);
+    rows[sepIndex] = makeSeparatorRow(mark, currentLevel, levelCount);
   }
 
   table.innerHTML = rows.join("");
