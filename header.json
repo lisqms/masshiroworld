@@ -1,8 +1,8 @@
 ﻿{
     "name": "PMS仮難易度表",
     "symbol": "P",
-    "data_url": "./score.json",
-    "data_url_json": "./score.json",
+    "data_url": "score.json",
+    "data_url_json": "score.json",
     "level_order": [
 	"●0",
         "●1",
