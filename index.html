@@ -47,7 +47,7 @@ function showError(msg) {
 }
 
 $(document).ready(function(){
-  // JSON読み込みのキャッシュを無効化（1）
+  // JSON読み込みのキャッシュを無効化
   $.ajaxSetup({ cache: false });
 
   var headerPath = $("meta[name=bmstable]").attr("content");
@@ -68,11 +68,18 @@ function getTotalDisplay(item) {
   var total = Number(item.total), notes = Number(item.notes);
   if (!isFinite(total) || !isFinite(notes) || notes <= 0) return cellValue(item.total);
   
-  // 増加率(%/note)の計算: TOTAL / Notes
+  // 1ノーツあたりのゲージ増加量 (TOTAL / Notes)
   var rate = total / notes;
-  var cls = rate <= 0.10 ? "total-rate-red-bold" : rate < 0.20 ? "total-rate-red" : rate < 0.40 ? "total-rate-blue" : "total-rate-blue-bold";
-  
-  return '<span class="' + cls + '">' + total + ' (' + (Math.round(rate * 100) / 100) + '%/note)</span>';
+
+  // しきい値判定 (0.10=10%/note, 0.20=20%/note, 0.40=40%/note)
+  var cls = rate <= 0.10 ? "total-rate-red-bold" : 
+            rate < 0.20  ? "total-rate-red" : 
+            rate < 0.40  ? "total-rate-blue" : "total-rate-blue-bold";
+
+  // 四捨五入して表示（例: 1.9%/note）
+  var displayRate = Math.round(rate * 100) / 100;
+
+  return '<span class="' + cls + '">' + total + ' (' + displayRate + '%/note)</span>';
 }
 
 function makeBMSTable(info, mark, order) {
