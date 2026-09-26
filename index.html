@@ -68,8 +68,8 @@ function getTotalDisplay(item) {
   var total = Number(item.total), notes = Number(item.notes);
   if (!isFinite(total) || !isFinite(notes) || notes <= 0) return cellValue(item.total);
   
-  // 増加率(%/note)の計算: (TOTAL / Notes) * 100
-  var rate = (total / notes) * 100;
+  // 増加率(%/note)の計算: TOTAL / Notes
+  var rate = total / notes;
   var cls = rate <= 10 ? "total-rate-red-bold" : rate < 20 ? "total-rate-red" : rate < 40 ? "total-rate-blue" : "total-rate-blue-bold";
   return '<span class="' + cls + '">' + total + ' (' + (Math.round(rate * 100) / 100) + '%/note)</span>';
 }
