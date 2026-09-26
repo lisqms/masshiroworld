@@ -96,8 +96,9 @@ function makeBMSTable(info, mark, order) {
     return (a.title || "").toString().localeCompare((b.title || "").toString());
   });
 
+  // ヘッダー行：「タイトル + Mocha」に変更
   var rows = [
-    "<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='5'>IR</td><td>タイトル + LR2IR</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>"
+    "<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='5'>IR</td><td>タイトル + Mocha</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>"
   ];
   var currentLevel = null, levelCount = 0, sepIndex = -1;
 
@@ -125,16 +126,17 @@ function makeBMSTable(info, mark, order) {
 
     var diffStr = item.url_diff ? "<a href='" + item.url_diff + "'>" + cellValue(item.name_diff || item.url_diff) + "</a>" : cellValue(item.name_diff);
 
+    // IR列の1つ目を「LR2IR」に変更し、タイトルリンクを「Mocha (sha256)」に変更
     rows.push("<tr class='tr_normal'>" +
       "<td class='text-center'>" + mark + currentLevel + "</td>" +
       "<td class='text-center'>" + videoLink + "</td>" +
       "<td class='text-center'><a href='https://bms-score-viewer.pages.dev/view?md5=" + item.md5 + "' target='_blank'>♪</a></td>" +
-      "<td class='text-center'><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'>Mocha</a></td>" +
+      "<td class='text-center'><a href='https://lr2ir.com/charts/" + item.md5 + "' target='_blank'>LR2IR</a></td>" +
       "<td class='text-center'><a href='https://www.gaftalk.com/minir/#/viewer/song/" + item.sha256 + "/0' target='_blank'>MinIR</a></td>" +
       "<td class='text-center'><a href='https://bms-ir.org/new/song?songmd5=" + item.md5 + "' target='_blank'>BMSIR</a></td>" +
       "<td class='text-center'><a href='https://rianir.link/pages/ranking/ranking.php?sha256=" + item.sha256 + "' target='_blank'>RianIR</a></td>" +
       "<td class='text-center'><a href='https://ir.stellabms.xyz/charts/" + item.md5 + "' target='_blank'>Stella</a></td>" +
-      "<td><a href='https://lr2ir.com/charts/" + item.md5 + "' target='_blank'>" + cellValue(item.title) + "</a></td>" +
+      "<td><a href='https://mocha-repository.info/song.php?sha256=" + item.sha256 + "' target='_blank'>" + cellValue(item.title) + "</a></td>" +
       "<td>" + artistStr + "</td>" +
       "<td>" + diffStr + "</td>" +
       "<td class='text-center'>" + cellValue(item.notes) + "</td>" +
