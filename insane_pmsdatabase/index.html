@@ -22,6 +22,12 @@
     table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
     th, td { border: 1px solid #e9ecef; padding: 6px 8px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+    /* IR列（4〜9番目のセル）のみ左右の余白を詰めて文字切れを防止 */
+    .tr_normal td:nth-child(n+4):nth-child(-n+9) {
+      padding-left: 2px;
+      padding-right: 2px;
+    }
+
     /* 各列の固定幅 */
     col.c-lv { width: 55px; }
     col.c-sm { width: 45px; }
