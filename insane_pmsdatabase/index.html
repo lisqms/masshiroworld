@@ -20,8 +20,20 @@
     
     /* table-layout: fixed で計算コストを削減 */
     table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-    /* 上下左右すべてのパディングを 2px に設定 */
+    /* 全セルのパディングを 2px に統一 */
     th, td { border: 1px solid #e9ecef; padding: 2px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* 一番右のコメント列（16番目のセル）のみポインター表示 */
+    .tr_normal td:nth-child(16) {
+      cursor: pointer;
+    }
+
+    /* クリック展開用クラス */
+    .tr_normal td.is-expanded {
+      white-space: normal !important;
+      word-break: break-all;
+      overflow: visible;
+    }
 
     /* 各列の固定幅 */
     col.c-lv { width: 55px; }
@@ -33,18 +45,10 @@
     col.c-notes { width: 65px; }
     col.c-total { width: 130px; }
     col.c-memo { width: 120px; }
-
-    .tr_normal td:nth-child(10),
-    .tr_normal td:nth-child(11),
-    .tr_normal td:nth-child(12) {
-      white-space: normal;
-      word-wrap: break-word;
-      overflow-wrap: anywhere;
-    }
     
     .header-row { position: sticky; top: 0; z-index: 10; background: #343a40; color: #fff; font-weight: bold; text-align: center; }
     .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; }
-    .tr_separate td { padding: 4px 2px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; }
+    .tr_separate td { padding: 4px 2px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; cursor: default; }
     .tr_normal:nth-child(even) { background: #fff; }
     .tr_normal:nth-child(odd) { background: #f8f9fa; }
     .tr_normal:hover { background: #e2e6ea; }
@@ -115,15 +119,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (e) {
     showError("データの読み込みに失敗しました。");
   }
+
+  // テーブルクリックイベント（一番右のコメント列のみ展開）
+  document.getElementById("table_int").addEventListener("click", (e) => {
+    const td = e.target.closest("td");
+    // 通常行、かつ一番右の列（16番目のtd = cellIndex: 15）の場合のみトグル
+    if (td && td.parentElement.classList.contains("tr_normal") && td.cellIndex === 15) {
+      td.classList.toggle("is-expanded");
+    }
+  });
 });
 
 function getTotalDisplay(item) {
   const total = Number(item.total), notes = Number(item.notes);
   if (!total || !notes) return item.total ?? "";
   
-  // 1ノーツあたりのTOTAL増加量（実数値）
   const rate = total / notes;
-  
   const cls = rate <= 0.10 ? "total-rate-red-bold" : 
               rate < 0.20  ? "total-rate-red" : 
               rate < 0.40  ? "total-rate-blue" : "total-rate-blue-bold";
