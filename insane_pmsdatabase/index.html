@@ -21,7 +21,7 @@
     th, td { border: 1px solid #e9ecef; padding: 2px; text-align: left; word-break: break-all; }
 
     col.c-lv { width: 55px; }
-    col.c-sm { width: 45px; }
+    col.c-sm { width: 65px; }
     col.c-ir { width: 50px; }
     col.c-title { width: 220px; }
     col.c-artist { width: 180px; }
@@ -79,7 +79,16 @@ let searchableRows = [], sepRowMap = [];
 
 function showError(msg) {
   const err = document.getElementById("error-display");
-  err.innerHTML = `<h3>⚠️ エラー</h3>${msg}`;
+  err.textContent = "";
+  
+  const h3 = document.createElement("h3");
+  h3.textContent = "⚠️ エラー";
+  err.appendChild(h3);
+  
+  const p = document.createElement("p");
+  p.textContent = msg;
+  err.appendChild(p);
+
   err.style.display = "block";
   document.title = "エラー";
 }
@@ -106,19 +115,20 @@ function getTotalDisplay(item) {
   const total = Number(item.total), notes = Number(item.notes);
   if (!total || !notes || isNaN(total) || isNaN(notes)) return item.total ?? "";
   
-  const rate = (total / notes) * 100;
-  const cls = rate <= 10 ? "total-rate-red-bold" :
-              rate < 20  ? "total-rate-red" :
-              rate < 40  ? "total-rate-blue" : "total-rate-blue-bold";
+  const rate = total / notes;
+  const cls = rate <= 0.10 ? "total-rate-red-bold" :
+              rate < 0.20  ? "total-rate-red" :
+              rate < 0.40  ? "total-rate-blue" : "total-rate-blue-bold";
 
   return `<span class="${cls}">${total} (${rate.toFixed(3)}%/note)</span>`;
 }
 
 function getVideoLink(item) {
-  const v1 = item.video1, v2 = item.video2, v3 = item.video3;
-  return v1 ? `<a href='http://www.nicovideo.jp/watch/sm${v1}' target='_blank'>ニコ</a>` :
-         v2 ? `<a href='http://www.youtube.com/watch?v=${v2}' target='_blank'>YT</a>` :
-         v3 ? `<a href='http://vimeo.com/${v3}' target='_blank'>Vimeo</a>` : "";
+  const links = [];
+  if (item.video1) links.push(`<a href='http://www.nicovideo.jp/watch/sm${item.video1}' target='_blank'>ニコ</a>`);
+  if (item.video2) links.push(`<a href='http://www.youtube.com/watch?v=${item.video2}' target='_blank'>YT</a>`);
+  if (item.video3) links.push(`<a href='http://vimeo.com/${item.video3}' target='_blank'>Vimeo</a>`);
+  return links.join(" ");
 }
 
 function makeBMSTable(info, mark, order) {
