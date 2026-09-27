@@ -30,14 +30,40 @@
     .total-rate-red { color: #dc3545; }
     .total-rate-blue { color: #0d6efd; }
     .total-rate-blue-bold { color: #0d6efd; font-weight: bold; }
+    
+    /* 戻るボタン用のスタイル */
+    .nav-bar { margin-bottom: 12px; }
+    .nav-bar-bottom { margin-top: 15px; text-align: center; }
+    .nav-btn {
+      display: inline-block;
+      padding: 6px 14px;
+      background: #343a40;
+      color: #fff !important;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 13px;
+      text-decoration: none;
+      transition: background 0.2s ease;
+    }
+    .nav-btn:hover { background: #495057; text-decoration: none; }
   </style>
 </head>
 <body>
 
 <div id="container">
+  <!-- 上部の戻るボタン -->
+  <div class="nav-bar">
+    <a class="nav-btn" href="https://lisqms.github.io/masshiroworld/">← ポータルへ戻る</a>
+  </div>
+
   <div id="error-display"></div>
   <div class="tableflame">
     <table id="table_int"></table>
+  </div>
+
+  <!-- 下部の戻るボタン -->
+  <div class="nav-bar-bottom">
+    <a class="nav-btn" href="https://lisqms.github.io/masshiroworld/">← ポータルへ戻る</a>
   </div>
 </div>
 
