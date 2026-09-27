@@ -104,14 +104,14 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function getTotalDisplay(item) {
   const total = Number(item.total), notes = Number(item.notes);
-  if (!total || !notes) return item.total ?? "";
+  if (!total || !notes || isNaN(total) || isNaN(notes)) return item.total ?? "";
   
   const rate = (total / notes) * 100;
   const cls = rate <= 10 ? "total-rate-red-bold" :
               rate < 20  ? "total-rate-red" :
               rate < 40  ? "total-rate-blue" : "total-rate-blue-bold";
 
-  return `<span class="${cls}">${total} (${rate.toFixed(2)}%/note)</span>`;
+  return `<span class="${cls}">${total} (${rate.toFixed(3)}%/note)</span>`;
 }
 
 function getVideoLink(item) {
