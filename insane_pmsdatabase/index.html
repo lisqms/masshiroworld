@@ -120,12 +120,14 @@ function getTotalDisplay(item) {
   const total = Number(item.total), notes = Number(item.notes);
   if (!total || !notes) return item.total ?? "";
   
+  // 1ノーツあたりのTOTAL増加量（実数値）
   const rate = total / notes;
+  
   const cls = rate <= 0.10 ? "total-rate-red-bold" : 
               rate < 0.20  ? "total-rate-red" : 
               rate < 0.40  ? "total-rate-blue" : "total-rate-blue-bold";
 
-  return `<span class="${cls}">${total} (${Math.round(rate * 10000) / 100}%/note)</span>`;
+  return `<span class="${cls}">${total} (${rate.toFixed(2)}/note)</span>`;
 }
 
 function getVideoLink(item) {
@@ -175,7 +177,7 @@ function makeBMSTable(info, mark, order) {
       currentLevel = itemLevel;
       levelCount = 0;
       lastSepIdx = rows.length;
-      rows.push(""); // 後から差し替え用のプレースホルダー
+      rows.push("");
     }
     levelCount++;
 
