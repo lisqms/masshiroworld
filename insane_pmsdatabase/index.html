@@ -17,21 +17,9 @@
     #search-status { font-size: 12px; color: #6c757d; font-weight: bold; white-space: nowrap; }
 
     .tableflame { width: 100%; overflow-x: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    
-    /* table-layout: fixed で計算コストを削減 */
     table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-    
-    /* 全セル省略なし：自動改行して全文を表示 */
-    th, td { 
-      border: 1px solid #e9ecef; 
-      padding: 2px; 
-      text-align: left; 
-      white-space: normal; 
-      word-wrap: break-word; 
-      overflow-wrap: anywhere; 
-    }
+    th, td { border: 1px solid #e9ecef; padding: 2px; text-align: left; word-break: break-all; }
 
-    /* 各列の固定幅 */
     col.c-lv { width: 55px; }
     col.c-sm { width: 45px; }
     col.c-ir { width: 50px; }
@@ -81,7 +69,8 @@
   <div id="error-display"></div>
   
   <div class="search-container">
-    <input type="text" id="search-box" placeholder="検索（2文字以上入力）..." oninput="filterTable()">
+    <!-- oninput属性を削除してJS側でバインド -->
+    <input type="text" id="search-box" placeholder="検索（2文字以上入力）...">
     <span id="search-status"></span>
   </div>
 
@@ -90,7 +79,7 @@
 </div>
 
 <script>
-let searchableRows = [], sepRowMap = [], searchTimer = null;
+let searchableRows = [], sepRowMap = [];
 
 function showError(msg) {
   const err = document.getElementById("error-display");
@@ -101,18 +90,18 @@ function showError(msg) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   const metaTag = document.querySelector('meta[name="bmstable"]');
-  if (!metaTag) return showError('&lt;meta name="bmstable"&gt; がありません。');
+  if (!metaTag) return showError('<meta name="bmstable"> がありません。');
 
   try {
     const header = await (await fetch(metaTag.getAttribute("content"), { cache: "no-store" })).json();
     if (!header.data_url) return showError("data_url が指定されていません。");
 
     document.title = header.name || "BMS Database";
-
     const info = await (await fetch(header.data_url, { cache: "no-store" })).json();
 
     makeBMSTable(info, header.symbol || "", header.level_order || []);
-  } catch (e) {
+    setupSearch(); // 検索イベントのセットアップ
+  } catch {
     showError("データの読み込みに失敗しました。");
   }
 });
@@ -122,8 +111,8 @@ function getTotalDisplay(item) {
   if (!total || !notes) return item.total ?? "";
   
   const rate = total / notes;
-  const cls = rate <= 0.10 ? "total-rate-red-bold" : 
-              rate < 0.20  ? "total-rate-red" : 
+  const cls = rate <= 0.10 ? "total-rate-red-bold" :
+              rate < 0.20  ? "total-rate-red" :
               rate < 0.40  ? "total-rate-blue" : "total-rate-blue-bold";
 
   return `<span class="${cls}">${total} (${rate.toFixed(2)}/note)</span>`;
@@ -140,16 +129,11 @@ function makeBMSTable(info, mark, order) {
   const table = document.getElementById("table_int");
   if (!table) return;
 
-  const orderMap = {};
-  for (let i = 0; i < order.length; i++) {
-    orderMap[order[i].toString()] = i;
-  }
+  const orderMap = Object.fromEntries(order.map((lvl, i) => [lvl.toString(), i]));
 
   info.sort((a, b) => {
-    const aLvl = (a.level ?? "").toString();
-    const bLvl = (b.level ?? "").toString();
-    const aIdx = orderMap.hasOwnProperty(aLvl) ? orderMap[aLvl] : 99999;
-    const bIdx = orderMap.hasOwnProperty(bLvl) ? orderMap[bLvl] : 99999;
+    const aIdx = orderMap[a.level?.toString()] ?? 99999;
+    const bIdx = orderMap[b.level?.toString()] ?? 99999;
     return aIdx !== bIdx ? aIdx - bIdx : (a.title ?? "").toString().localeCompare((b.title ?? "").toString());
   });
   
@@ -165,8 +149,7 @@ function makeBMSTable(info, mark, order) {
   
   let currentLevel = null, levelCount = 0, lastSepIdx = -1;
 
-  for (let i = 0; i < info.length; i++) {
-    const item = info[i];
+  for (const item of info) {
     const itemLevel = (item.level ?? "").toString();
 
     if (currentLevel !== itemLevel) {
@@ -180,12 +163,9 @@ function makeBMSTable(info, mark, order) {
     }
     levelCount++;
 
-    const artistName = item.artist || item.url || "";
-    const artistStr = item.url ? `<a href='${item.url}'>${artistName}</a>` : artistName;
-    const packName = item.name_pack || item.url_pack || "";
-    const packStr = packName ? `<br />(${item.url_pack ? `<a href='${item.url_pack}'>${packName}</a>` : packName})` : "";
-    const diffName = item.name_diff || item.url_diff || "";
-    const diffStr = item.url_diff ? `<a href='${item.url_diff}'>${diffName}</a>` : diffName;
+    const artist = item.artist || item.url || "";
+    const pack = item.name_pack || item.url_pack || "";
+    const diff = item.name_diff || item.url_diff || "";
 
     rows.push(`<tr class='tr_normal'>
       <td class='text-center'>${mark}${currentLevel}</td>
@@ -198,8 +178,8 @@ function makeBMSTable(info, mark, order) {
       <td class='text-center'><a href='https://ir.stellabms.xyz/charts/${item.md5}' target='_blank'>STELLA</a></td>
       <td class='text-center'><a href='https://kaleidir.com/charts/${item.sha256}' target='_blank'>Kaleid</a></td>
       <td><a href='https://mocha-repository.info/song.php?sha256=${item.sha256}' target='_blank'>${item.title ?? ""}</a></td>
-      <td>${artistStr}${packStr}</td>
-      <td>${diffStr}</td>
+      <td>${item.url ? `<a href='${item.url}'>${artist}</a>` : artist}${pack ? `<br />(${item.url_pack ? `<a href='${item.url_pack}'>${pack}</a>` : pack})` : ""}</td>
+      <td>${item.url_diff ? `<a href='${item.url_diff}'>${diff}</a>` : diff}</td>
       <td class='text-center'>${item.notes ?? ""}</td>
       <td>${getTotalDisplay(item)}</td>
       <td>${item.memo ?? ""}</td>
@@ -220,11 +200,7 @@ function cacheSearchData() {
   sepRowMap = [];
   let currentSep = null;
 
-  const trs = document.getElementById("table_int").rows;
-  for (let i = 0; i < trs.length; i++) {
-    const row = trs[i];
-    if (row.classList.contains("header-row")) continue;
-
+  for (const row of document.getElementById("table_int").rows) {
     if (row.classList.contains("tr_separate")) {
       currentSep = { element: row, matchCount: 0, hidden: false };
       sepRowMap.push(currentSep);
@@ -239,63 +215,49 @@ function cacheSearchData() {
   }
 }
 
-function filterTable() {
-  clearTimeout(searchTimer);
-  
-  searchTimer = setTimeout(() => {
-    const query = document.getElementById("search-box").value.toLowerCase().trim();
-    const statusEl = document.getElementById("search-status");
+function setupSearch() {
+  const searchBox = document.getElementById("search-box");
+  const statusEl = document.getElementById("search-status");
+  let timer = null;
 
-    if (query.length === 1) {
-      statusEl.textContent = "2文字以上入力してください";
-      for (let i = 0; i < searchableRows.length; i++) {
-        if (searchableRows[i].hidden) {
-          searchableRows[i].element.classList.remove("is-hidden");
-          searchableRows[i].hidden = false;
+  searchBox.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const query = searchBox.value.toLowerCase().trim();
+
+      if (query.length < 2) {
+        statusEl.textContent = query.length === 1 ? "2文字以上入力してください" : "";
+        searchableRows.forEach(row => { if (row.hidden) { row.element.classList.remove("is-hidden"); row.hidden = false; } });
+        sepRowMap.forEach(sep => { if (sep.hidden) { sep.element.classList.remove("is-hidden"); sep.hidden = false; } });
+        return;
+      }
+
+      let totalMatches = 0;
+      sepRowMap.forEach(sep => sep.matchCount = 0);
+
+      searchableRows.forEach(item => {
+        const isMatch = item.text.includes(query);
+        if (item.hidden === isMatch) {
+          item.element.classList.toggle("is-hidden", !isMatch);
+          item.hidden = !isMatch;
         }
-      }
-      for (let i = 0; i < sepRowMap.length; i++) {
-        if (sepRowMap[i].hidden) {
-          sepRowMap[i].element.classList.remove("is-hidden");
-          sepRowMap[i].hidden = false;
+        if (isMatch) {
+          totalMatches++;
+          if (item.parentSep) item.parentSep.matchCount++;
         }
-      }
-      return;
-    }
+      });
 
-    let totalMatches = 0;
-    const isBlank = query.length === 0;
+      sepRowMap.forEach(s => {
+        const shouldHide = s.matchCount === 0;
+        if (s.hidden !== shouldHide) {
+          s.element.classList.toggle("is-hidden", shouldHide);
+          s.hidden = shouldHide;
+        }
+      });
 
-    for (let i = 0; i < sepRowMap.length; i++) sepRowMap[i].matchCount = 0;
-
-    const rowCount = searchableRows.length;
-    for (let i = 0; i < rowCount; i++) {
-      const item = searchableRows[i];
-      const isMatch = isBlank || item.text.includes(query);
-      
-      if (item.hidden === isMatch) {
-        item.element.classList.toggle("is-hidden", !isMatch);
-        item.hidden = !isMatch;
-      }
-
-      if (isMatch) {
-        totalMatches++;
-        if (item.parentSep) item.parentSep.matchCount++;
-      }
-    }
-
-    const sepCount = sepRowMap.length;
-    for (let i = 0; i < sepCount; i++) {
-      const s = sepRowMap[i];
-      const shouldHide = !isBlank && s.matchCount === 0;
-      if (s.hidden !== shouldHide) {
-        s.element.classList.toggle("is-hidden", shouldHide);
-        s.hidden = shouldHide;
-      }
-    }
-
-    statusEl.textContent = isBlank ? "" : `${totalMatches} 件表示中`;
-  }, 200);
+      statusEl.textContent = `${totalMatches} 件表示中`;
+    }, 200);
+  });
 }
 </script>
 
