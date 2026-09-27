@@ -20,19 +20,15 @@
     
     /* table-layout: fixed で計算コストを削減 */
     table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-    /* 全セルのパディングを 2px に統一 */
-    th, td { border: 1px solid #e9ecef; padding: 2px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    /* 一番右のコメント列（16番目のセル）のみポインター表示 */
-    .tr_normal td:nth-child(16) {
-      cursor: pointer;
-    }
-
-    /* クリック展開用クラス */
-    .tr_normal td.is-expanded {
-      white-space: normal !important;
-      word-break: break-all;
-      overflow: visible;
+    
+    /* 全セル省略なし：自動改行して全文を表示 */
+    th, td { 
+      border: 1px solid #e9ecef; 
+      padding: 2px; 
+      text-align: left; 
+      white-space: normal; 
+      word-wrap: break-word; 
+      overflow-wrap: anywhere; 
     }
 
     /* 各列の固定幅 */
@@ -48,7 +44,7 @@
     
     .header-row { position: sticky; top: 0; z-index: 10; background: #343a40; color: #fff; font-weight: bold; text-align: center; }
     .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; }
-    .tr_separate td { padding: 4px 2px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; cursor: default; }
+    .tr_separate td { padding: 4px 2px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; }
     .tr_normal:nth-child(even) { background: #fff; }
     .tr_normal:nth-child(odd) { background: #f8f9fa; }
     .tr_normal:hover { background: #e2e6ea; }
@@ -119,15 +115,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   } catch (e) {
     showError("データの読み込みに失敗しました。");
   }
-
-  // テーブルクリックイベント（一番右のコメント列のみ展開）
-  document.getElementById("table_int").addEventListener("click", (e) => {
-    const td = e.target.closest("td");
-    // 通常行、かつ一番右の列（16番目のtd = cellIndex: 15）の場合のみトグル
-    if (td && td.parentElement.classList.contains("tr_normal") && td.cellIndex === 15) {
-      td.classList.toggle("is-expanded");
-    }
-  });
 });
 
 function getTotalDisplay(item) {
