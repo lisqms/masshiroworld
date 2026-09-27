@@ -7,20 +7,23 @@
   <meta http-equiv="Expires" content="0">
   <title>PMSデータベース</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="bmstable" content="insane_pmsdatabase_header.json" />
+  <meta name="bmstable" content="insane_pmsdatabase_score.json" />
 
   <style>
     body { background: #f8f9fa; color: #333; font-family: sans-serif; margin: 15px; font-size: 14px; }
     a { color: #0056b3; text-decoration: none; }
     #error-display { display: none; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 12px; margin-bottom: 15px; border-radius: 4px; }
     
-    /* 検索バーのスタイル */
+    /* 検索バーエリア */
+    .search-container { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
     #search-box {
-      width: 100%; padding: 8px 12px; margin-bottom: 12px; box-sizing: border-box;
+      flex: 1; padding: 8px 12px; box-sizing: border-box;
       border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;
     }
+    #search-status { font-size: 12px; color: #6c757d; white-space: nowrap; font-weight: bold; }
 
-    .tableflame { width: 100%; overflow-x: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    /* Sticky Headerを正常動作させるためのスクロール枠最適化 */
+    .tableflame { width: 100%; overflow-x: auto; max-height: 85vh; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
     th, td { border: 1px solid #e9ecef; padding: 6px 8px; text-align: left; }
     
@@ -34,6 +37,9 @@
     .tr_normal:hover { background: #e2e6ea; }
     .text-center { text-align: center; }
     
+    /* 高速化用非表示クラス */
+    .is-hidden { display: none !important; }
+
     /* TOTAL増加率の色分け */
     .total-rate-red-bold { color: #dc3545; font-weight: bold; }
     .total-rate-red { color: #dc3545; }
@@ -63,17 +69,23 @@
 <body>
 
 <div id="container">
-  <div class="nav-bar"><a class="nav-btn" href="../">← 戻る</a></div>
+  <div class="nav-bar"><a class="nav-btn" href="../">← ポータルへ戻る</a></div>
   <div id="error-display"></div>
   
-  <!-- 簡易検索窓 -->
-  <input type="text" id="search-box" placeholder="タイトル・アーティスト・差分・コメントで検索..." oninput="filterTable()">
+  <div class="search-container">
+    <input type="text" id="search-box" placeholder="検索（2文字以上入力）..." oninput="filterTable()">
+    <span id="search-status"></span>
+  </div>
 
   <div class="tableflame"><table id="table_int"></table></div>
-  <div class="nav-bar nav-bar-bottom"><a class="nav-btn" href="../">← 戻る</a></div>
+  <div class="nav-bar nav-bar-bottom"><a class="nav-btn" href="../">← ポータルへ戻る</a></div>
 </div>
 
 <script>
+let searchableRows = [];
+let sepRowMap = []; // 区切り行（見出し）制御用の配列
+let searchTimer = null;
+
 function showError(msg) {
   const errDiv = document.getElementById("error-display");
   errDiv.innerHTML = `<h3>⚠️ エラー</h3>${msg}`;
@@ -89,7 +101,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const header = await headerRes.json();
     if (!header.data_url) return showError("data_url が指定されていません。");
 
-    // ヘッダー名が設定されていればページタイトルに反映
     if (header.name) document.title = header.name;
 
     const dataRes = await fetch(header.data_url, { cache: "no-store" });
@@ -179,25 +190,86 @@ function makeBMSTable(info, mark, order) {
 
   if (sepIndex >= 0) rows[sepIndex] = makeSep(mark, currentLevel, levelCount);
   table.innerHTML = rows.join("");
+
+  cacheSearchData();
 }
 
 function makeSep(mark, level, count) {
   return `<tr class='tr_separate'><td colspan='16'><b>${mark}${level} (${count}譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
 }
 
-// リアルタイム検索機能
-function filterTable() {
-  const query = document.getElementById("search-box").value.toLowerCase();
-  const rows = document.querySelectorAll("#table_int tr");
+// 検索データ構造の初期化（区切り行と楽曲行を紐づけてロード）
+function cacheSearchData() {
+  const allRows = document.querySelectorAll("#table_int tr");
+  searchableRows = [];
+  sepRowMap = [];
   
-  rows.forEach(row => {
-    if (row.classList.contains("header-row") || row.classList.contains("tr_separate")) {
-      row.style.display = ""; // ヘッダー・区切り行は常に表示
+  let currentSep = null;
+
+  allRows.forEach(row => {
+    if (row.classList.contains("tr_separate")) {
+      currentSep = { element: row, matchCount: 0 };
+      sepRowMap.push(currentSep);
+    } else if (row.classList.contains("tr_normal")) {
+      searchableRows.push({
+        element: row,
+        text: row.textContent.toLowerCase(),
+        parentSep: currentSep
+      });
+    }
+  });
+}
+
+// 検索フィルタリング（空行・区切り行の自動隠蔽を含む）
+function filterTable() {
+  clearTimeout(searchTimer);
+  
+  searchTimer = setTimeout(() => {
+    const query = document.getElementById("search-box").value.toLowerCase().trim();
+    const statusEl = document.getElementById("search-status");
+
+    // 1文字の時は案内を表示しつつ全行を表示（表示不整合を防止）
+    if (query.length === 1) {
+      statusEl.textContent = "2文字以上入力してください";
+      resetVisibility();
       return;
     }
-    const text = row.innerText.toLowerCase();
-    row.style.display = text.includes(query) ? "" : "none";
-  });
+
+    let totalMatchCount = 0;
+    const isBlank = query.length === 0;
+
+    // 各区切り行のカウントをリセット
+    sepRowMap.forEach(s => s.matchCount = 0);
+
+    for (let i = 0; i < searchableRows.length; i++) {
+      const item = searchableRows[i];
+      const isMatch = isBlank || item.text.includes(query);
+      
+      item.element.classList.toggle("is-hidden", !isMatch);
+
+      if (isMatch) {
+        totalMatchCount++;
+        if (item.parentSep) item.parentSep.matchCount++;
+      }
+    }
+
+    // ヒットする曲が0件の区切り行を自動的に非表示にする
+    sepRowMap.forEach(s => {
+      s.element.classList.toggle("is-hidden", !isBlank && s.matchCount === 0);
+    });
+
+    if (isBlank) {
+      statusEl.textContent = "";
+    } else {
+      statusEl.textContent = `${totalMatchCount} 件表示中`;
+    }
+  }, 250);
+}
+
+// すべて表示状態に戻す補助関数
+function resetVisibility() {
+  searchableRows.forEach(item => item.element.classList.remove("is-hidden"));
+  sepRowMap.forEach(s => s.element.classList.remove("is-hidden"));
 }
 </script>
 
