@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <!-- 初期状態はLoading...にしておく -->
   <title>Loading...</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="bmstable" content="insane_pmsdatabase_header.json">
@@ -18,16 +17,26 @@
     #search-status { font-size: 12px; color: #6c757d; font-weight: bold; white-space: nowrap; }
 
     .tableflame { width: 100%; overflow-x: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { border: 1px solid #e9ecef; padding: 6px 8px; text-align: left; white-space: nowrap; }
+    
+    /* table-layout: fixed で計算コストを削減 */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    th, td { border: 1px solid #e9ecef; padding: 6px 8px; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    /* 長い文字列の折り返し調整 */
+    /* 各列の固定幅 */
+    col.c-lv { width: 55px; }
+    col.c-sm { width: 45px; }
+    col.c-ir { width: 50px; }
+    col.c-title { width: 220px; }
+    col.c-artist { width: 180px; }
+    col.c-diff { width: 150px; }
+    col.c-notes { width: 65px; }
+    col.c-total { width: 130px; }
+    col.c-memo { width: 120px; }
+
     .tr_normal td:nth-child(10),
     .tr_normal td:nth-child(11),
     .tr_normal td:nth-child(12) {
       white-space: normal;
-      min-width: 150px;
-      max-width: 280px;
       word-wrap: break-word;
       overflow-wrap: anywhere;
     }
@@ -41,7 +50,6 @@
     .text-center { text-align: center; }
     .is-hidden { display: none !important; }
 
-    /* TOTAL増加率の色分け */
     .total-rate-red-bold { color: #dc3545; font-weight: bold; }
     .total-rate-red { color: #dc3545; }
     .total-rate-blue { color: #0d6efd; }
@@ -82,13 +90,12 @@
 
 <script>
 let searchableRows = [], sepRowMap = [], searchTimer = null;
-const cellValue = v => v ?? "";
 
 function showError(msg) {
   const err = document.getElementById("error-display");
   err.innerHTML = `<h3>⚠️ エラー</h3>${msg}`;
   err.style.display = "block";
-  document.title = "エラー"; // エラー発生時
+  document.title = "エラー";
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -99,7 +106,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const header = await (await fetch(metaTag.getAttribute("content"), { cache: "no-store" })).json();
     if (!header.data_url) return showError("data_url が指定されていません。");
 
-    // header.json 内の name を取得して <title> を上書き
     document.title = header.name || "BMS Database";
 
     const info = await (await fetch(header.data_url, { cache: "no-store" })).json();
@@ -112,7 +118,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 function getTotalDisplay(item) {
   const total = Number(item.total), notes = Number(item.notes);
-  if (!total || !notes) return cellValue(item.total);
+  if (!total || !notes) return item.total ?? "";
   
   const rate = total / notes;
   const cls = rate <= 0.10 ? "total-rate-red-bold" : 
@@ -134,37 +140,51 @@ function makeBMSTable(info, mark, order) {
   if (!table) return;
 
   const orderMap = {};
-  order.forEach((lvl, idx) => orderMap[lvl.toString()] = idx);
+  for (let i = 0; i < order.length; i++) {
+    orderMap[order[i].toString()] = i;
+  }
 
   info.sort((a, b) => {
-    const aIdx = orderMap.hasOwnProperty(a.level) ? orderMap[a.level] : 99999;
-    const bIdx = orderMap.hasOwnProperty(b.level) ? orderMap[b.level] : 99999;
-    return aIdx !== bIdx ? aIdx - bIdx : cellValue(a.title).toString().localeCompare(cellValue(b.title).toString());
+    const aLvl = (a.level ?? "").toString();
+    const bLvl = (b.level ?? "").toString();
+    const aIdx = orderMap.hasOwnProperty(aLvl) ? orderMap[aLvl] : 99999;
+    const bIdx = orderMap.hasOwnProperty(bLvl) ? orderMap[bLvl] : 99999;
+    return aIdx !== bIdx ? aIdx - bIdx : (a.title ?? "").toString().localeCompare((b.title ?? "").toString());
   });
   
   const rows = [
+    `<colgroup>
+      <col class="c-lv"><col class="c-sm"><col class="c-sm">
+      <col class="c-ir"><col class="c-ir"><col class="c-ir"><col class="c-ir"><col class="c-ir"><col class="c-ir">
+      <col class="c-title"><col class="c-artist"><col class="c-diff">
+      <col class="c-notes"><col class="c-total"><col class="c-memo"><col class="c-memo">
+    </colgroup>`,
     `<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='6'>IR</td><td>タイトル + Mocha</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>`
   ];
   
-  let currentLevel = null, levelCount = 0, sepIndex = -1;
+  let currentLevel = null, levelCount = 0, lastSepIdx = -1;
 
-  for (const item of info) {
-    const itemLevel = cellValue(item.level).toString();
+  for (let i = 0; i < info.length; i++) {
+    const item = info[i];
+    const itemLevel = (item.level ?? "").toString();
 
     if (currentLevel !== itemLevel) {
-      if (sepIndex >= 0) rows[sepIndex] = makeSep(mark, currentLevel, levelCount);
+      if (lastSepIdx !== -1) {
+        rows[lastSepIdx] = `<tr class='tr_separate'><td colspan='16'><b>${mark}${currentLevel} (${levelCount}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
+      }
       currentLevel = itemLevel;
       levelCount = 0;
-      sepIndex = rows.length;
-      rows.push("");
+      lastSepIdx = rows.length;
+      rows.push(""); // 後から差し替え用のプレースホルダー
     }
     levelCount++;
 
-    const artistStr = item.url ? `<a href='${item.url}'>${cellValue(item.artist || item.url)}</a>` : cellValue(item.artist);
-    const packStr = (item.name_pack || item.url_pack) 
-      ? `<br />(${item.url_pack ? `<a href='${item.url_pack}'>${cellValue(item.name_pack || item.url_pack)}</a>` : item.name_pack})` 
-      : "";
-    const diffStr = item.url_diff ? `<a href='${item.url_diff}'>${cellValue(item.name_diff || item.url_diff)}</a>` : cellValue(item.name_diff);
+    const artistName = item.artist || item.url || "";
+    const artistStr = item.url ? `<a href='${item.url}'>${artistName}</a>` : artistName;
+    const packName = item.name_pack || item.url_pack || "";
+    const packStr = packName ? `<br />(${item.url_pack ? `<a href='${item.url_pack}'>${packName}</a>` : packName})` : "";
+    const diffName = item.name_diff || item.url_diff || "";
+    const diffStr = item.url_diff ? `<a href='${item.url_diff}'>${diffName}</a>` : diffName;
 
     rows.push(`<tr class='tr_normal'>
       <td class='text-center'>${mark}${currentLevel}</td>
@@ -176,24 +196,22 @@ function makeBMSTable(info, mark, order) {
       <td class='text-center'><a href='https://rianir.link/pages/ranking/ranking.php?sha256=${item.sha256}' target='_blank'>RianIR</a></td>
       <td class='text-center'><a href='https://ir.stellabms.xyz/charts/${item.md5}' target='_blank'>STELLA</a></td>
       <td class='text-center'><a href='https://kaleidir.com/charts/${item.sha256}' target='_blank'>Kaleid</a></td>
-      <td><a href='https://mocha-repository.info/song.php?sha256=${item.sha256}' target='_blank'>${cellValue(item.title)}</a></td>
+      <td><a href='https://mocha-repository.info/song.php?sha256=${item.sha256}' target='_blank'>${item.title ?? ""}</a></td>
       <td>${artistStr}${packStr}</td>
       <td>${diffStr}</td>
-      <td class='text-center'>${cellValue(item.notes)}</td>
+      <td class='text-center'>${item.notes ?? ""}</td>
       <td>${getTotalDisplay(item)}</td>
-      <td>${cellValue(item.memo)}</td>
-      <td>${cellValue(item.comment)}</td>
+      <td>${item.memo ?? ""}</td>
+      <td>${item.comment ?? ""}</td>
     </tr>`);
   }
 
-  if (sepIndex >= 0) rows[sepIndex] = makeSep(mark, currentLevel, levelCount);
+  if (lastSepIdx !== -1) {
+    rows[lastSepIdx] = `<tr class='tr_separate'><td colspan='16'><b>${mark}${currentLevel} (${levelCount}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
+  }
+
   table.innerHTML = rows.join("");
-
   cacheSearchData();
-}
-
-function makeSep(mark, level, count) {
-  return `<tr class='tr_separate'><td colspan='16'><b>${mark}${level} (${count}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
 }
 
 function cacheSearchData() {
@@ -201,18 +219,23 @@ function cacheSearchData() {
   sepRowMap = [];
   let currentSep = null;
 
-  document.querySelectorAll("#table_int tr").forEach(row => {
+  const trs = document.getElementById("table_int").rows;
+  for (let i = 0; i < trs.length; i++) {
+    const row = trs[i];
+    if (row.classList.contains("header-row")) continue;
+
     if (row.classList.contains("tr_separate")) {
-      currentSep = { element: row, matchCount: 0 };
+      currentSep = { element: row, matchCount: 0, hidden: false };
       sepRowMap.push(currentSep);
     } else if (row.classList.contains("tr_normal")) {
       searchableRows.push({
         element: row,
         text: row.textContent.toLowerCase(),
-        parentSep: currentSep
+        parentSep: currentSep,
+        hidden: false
       });
     }
-  });
+  }
 }
 
 function filterTable() {
@@ -224,21 +247,35 @@ function filterTable() {
 
     if (query.length === 1) {
       statusEl.textContent = "2文字以上入力してください";
-      searchableRows.forEach(i => i.element.classList.remove("is-hidden"));
-      sepRowMap.forEach(s => s.element.classList.remove("is-hidden"));
+      for (let i = 0; i < searchableRows.length; i++) {
+        if (searchableRows[i].hidden) {
+          searchableRows[i].element.classList.remove("is-hidden");
+          searchableRows[i].hidden = false;
+        }
+      }
+      for (let i = 0; i < sepRowMap.length; i++) {
+        if (sepRowMap[i].hidden) {
+          sepRowMap[i].element.classList.remove("is-hidden");
+          sepRowMap[i].hidden = false;
+        }
+      }
       return;
     }
 
     let totalMatches = 0;
     const isBlank = query.length === 0;
 
-    sepRowMap.forEach(s => s.matchCount = 0);
+    for (let i = 0; i < sepRowMap.length; i++) sepRowMap[i].matchCount = 0;
 
-    for (let i = 0; i < searchableRows.length; i++) {
+    const rowCount = searchableRows.length;
+    for (let i = 0; i < rowCount; i++) {
       const item = searchableRows[i];
       const isMatch = isBlank || item.text.includes(query);
       
-      item.element.classList.toggle("is-hidden", !isMatch);
+      if (item.hidden === isMatch) {
+        item.element.classList.toggle("is-hidden", !isMatch);
+        item.hidden = !isMatch;
+      }
 
       if (isMatch) {
         totalMatches++;
@@ -246,12 +283,18 @@ function filterTable() {
       }
     }
 
-    sepRowMap.forEach(s => {
-      s.element.classList.toggle("is-hidden", !isBlank && s.matchCount === 0);
-    });
+    const sepCount = sepRowMap.length;
+    for (let i = 0; i < sepCount; i++) {
+      const s = sepRowMap[i];
+      const shouldHide = !isBlank && s.matchCount === 0;
+      if (s.hidden !== shouldHide) {
+        s.element.classList.toggle("is-hidden", shouldHide);
+        s.hidden = shouldHide;
+      }
+    }
 
     statusEl.textContent = isBlank ? "" : `${totalMatches} 件表示中`;
-  }, 250);
+  }, 200);
 }
 </script>
 
