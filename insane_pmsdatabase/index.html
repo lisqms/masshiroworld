@@ -33,8 +33,6 @@
     .header-row { position: sticky; top: 0; z-index: 10; background: #343a40; color: #fff; font-weight: bold; text-align: center; }
     .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; }
     .tr_separate td { padding: 4px 2px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; }
-    .tr_normal:nth-child(even) { background: #fff; }
-    .tr_normal:nth-child(odd) { background: #f8f9fa; }
     .tr_normal:hover { background: #e2e6ea; }
     .text-center { text-align: center; }
     .is-hidden { display: none !important; }
@@ -51,9 +49,8 @@
     @media (prefers-color-scheme: dark) {
       body { background: #121212; color: #e0e0e0; }
       #search-box { background: #2b2b2b; color: #fff; border-color: #444; }
-      .tableflame, .tr_normal:nth-child(even) { background: #1e1e1e; }
+      .tableflame { background: #1e1e1e; }
       th, td { border-color: #333; }
-      .tr_normal:nth-child(odd) { background: #252525; }
       .tr_normal:hover { background: #2c2c2c; }
       .tr_separate { background: #2a2d30; color: #fff; }
       a, .total-rate-blue, .total-rate-blue-bold { color: #6ea8fe; }
@@ -69,7 +66,6 @@
   <div id="error-display"></div>
   
   <div class="search-container">
-    <!-- oninput属性を削除してJS側でバインド -->
     <input type="text" id="search-box" placeholder="検索（2文字以上入力）...">
     <span id="search-status"></span>
   </div>
@@ -100,7 +96,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const info = await (await fetch(header.data_url, { cache: "no-store" })).json();
 
     makeBMSTable(info, header.symbol || "", header.level_order || []);
-    setupSearch(); // 検索イベントのセットアップ
+    setupSearch();
   } catch {
     showError("データの読み込みに失敗しました。");
   }
@@ -110,31 +106,31 @@ function getTotalDisplay(item) {
   const total = Number(item.total), notes = Number(item.notes);
   if (!total || !notes) return item.total ?? "";
   
-  const rate = total / notes;
-  const cls = rate <= 0.10 ? "total-rate-red-bold" :
-              rate < 0.20  ? "total-rate-red" :
-              rate < 0.40  ? "total-rate-blue" : "total-rate-blue-bold";
+  const rate = (total / notes) * 100;
+  const cls = rate <= 10 ? "total-rate-red-bold" :
+              rate < 20  ? "total-rate-red" :
+              rate < 40  ? "total-rate-blue" : "total-rate-blue-bold";
 
-  return `<span class="${cls}">${total} (${rate.toFixed(2)}/note)</span>`;
+  return `<span class="${cls}">${total} (${rate.toFixed(2)}%/note)</span>`;
 }
 
 function getVideoLink(item) {
-  if (item.video1) return `<a href='http://www.nicovideo.jp/watch/sm${item.video1}' target='_blank'>ニコ</a>`;
-  if (item.video2) return `<a href='http://www.youtube.com/watch?v=${item.video2}' target='_blank'>YT</a>`;
-  if (item.video3) return `<a href='http://vimeo.com/${item.video3}' target='_blank'>Vimeo</a>`;
-  return "";
+  const v1 = item.video1, v2 = item.video2, v3 = item.video3;
+  return v1 ? `<a href='http://www.nicovideo.jp/watch/sm${v1}' target='_blank'>ニコ</a>` :
+         v2 ? `<a href='http://www.youtube.com/watch?v=${v2}' target='_blank'>YT</a>` :
+         v3 ? `<a href='http://vimeo.com/${v3}' target='_blank'>Vimeo</a>` : "";
 }
 
 function makeBMSTable(info, mark, order) {
   const table = document.getElementById("table_int");
   if (!table) return;
 
-  const orderMap = Object.fromEntries(order.map((lvl, i) => [lvl.toString(), i]));
+  const orderMap = Object.fromEntries(order.map((lvl, i) => [lvl, i]));
 
   info.sort((a, b) => {
-    const aIdx = orderMap[a.level?.toString()] ?? 99999;
-    const bIdx = orderMap[b.level?.toString()] ?? 99999;
-    return aIdx !== bIdx ? aIdx - bIdx : (a.title ?? "").toString().localeCompare((b.title ?? "").toString());
+    const aIdx = orderMap[a.level] ?? 99999;
+    const bIdx = orderMap[b.level] ?? 99999;
+    return aIdx !== bIdx ? aIdx - bIdx : (a.title || "").localeCompare(b.title || "");
   });
   
   const rows = [
@@ -150,7 +146,7 @@ function makeBMSTable(info, mark, order) {
   let currentLevel = null, levelCount = 0, lastSepIdx = -1;
 
   for (const item of info) {
-    const itemLevel = (item.level ?? "").toString();
+    const itemLevel = item.level ?? "";
 
     if (currentLevel !== itemLevel) {
       if (lastSepIdx !== -1) {
@@ -192,24 +188,20 @@ function makeBMSTable(info, mark, order) {
   }
 
   table.innerHTML = rows.join("");
-  cacheSearchData();
-}
 
-function cacheSearchData() {
   searchableRows = [];
   sepRowMap = [];
   let currentSep = null;
 
-  for (const row of document.getElementById("table_int").rows) {
+  for (const row of table.rows) {
     if (row.classList.contains("tr_separate")) {
-      currentSep = { element: row, matchCount: 0, hidden: false };
+      currentSep = { element: row, matchCount: 0 };
       sepRowMap.push(currentSep);
     } else if (row.classList.contains("tr_normal")) {
       searchableRows.push({
         element: row,
         text: row.textContent.toLowerCase(),
-        parentSep: currentSep,
-        hidden: false
+        parentSep: currentSep
       });
     }
   }
@@ -227,20 +219,17 @@ function setupSearch() {
 
       if (query.length < 2) {
         statusEl.textContent = query.length === 1 ? "2文字以上入力してください" : "";
-        searchableRows.forEach(row => { if (row.hidden) { row.element.classList.remove("is-hidden"); row.hidden = false; } });
-        sepRowMap.forEach(sep => { if (sep.hidden) { sep.element.classList.remove("is-hidden"); sep.hidden = false; } });
+        searchableRows.forEach(r => r.element.classList.remove("is-hidden"));
+        sepRowMap.forEach(s => s.element.classList.remove("is-hidden"));
         return;
       }
 
       let totalMatches = 0;
-      sepRowMap.forEach(sep => sep.matchCount = 0);
+      sepRowMap.forEach(s => s.matchCount = 0);
 
       searchableRows.forEach(item => {
         const isMatch = item.text.includes(query);
-        if (item.hidden === isMatch) {
-          item.element.classList.toggle("is-hidden", !isMatch);
-          item.hidden = !isMatch;
-        }
+        item.element.classList.toggle("is-hidden", !isMatch);
         if (isMatch) {
           totalMatches++;
           if (item.parentSep) item.parentSep.matchCount++;
@@ -248,11 +237,7 @@ function setupSearch() {
       });
 
       sepRowMap.forEach(s => {
-        const shouldHide = s.matchCount === 0;
-        if (s.hidden !== shouldHide) {
-          s.element.classList.toggle("is-hidden", shouldHide);
-          s.hidden = shouldHide;
-        }
+        s.element.classList.toggle("is-hidden", s.matchCount === 0);
       });
 
       statusEl.textContent = `${totalMatches} 件表示中`;
