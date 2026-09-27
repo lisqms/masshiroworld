@@ -20,10 +20,16 @@
     table { width: 100%; border-collapse: collapse; font-size: 13px; }
     th, td { border: 1px solid #e9ecef; padding: 6px 8px; text-align: left; white-space: nowrap; }
 
-    /* タイトル・アーティスト・差分列の横幅自動調整 */
+    /* 長い文字列の折り返し調整 */
     .tr_normal td:nth-child(10),
     .tr_normal td:nth-child(11),
-    .tr_normal td:nth-child(12) { white-space: normal; max-width: 300px; word-break: break-all; }
+    .tr_normal td:nth-child(12) {
+      white-space: normal;
+      min-width: 150px;
+      max-width: 280px;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+    }
     
     .header-row { position: sticky; top: 0; z-index: 10; background: #343a40; color: #fff; font-weight: bold; text-align: center; }
     .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; }
@@ -61,7 +67,7 @@
 <body>
 
 <div id="container">
-  <div class="nav-bar"><a class="nav-btn" href="../">← 戻る</a></div>
+  <div class="nav-bar"><a class="nav-btn" href="../">← ポータルへ戻る</a></div>
   <div id="error-display"></div>
   
   <div class="search-container">
@@ -70,7 +76,7 @@
   </div>
 
   <div class="tableflame"><table id="table_int"></table></div>
-  <div class="nav-bar nav-bar-bottom"><a class="nav-btn" href="../">← 戻る</a></div>
+  <div class="nav-bar nav-bar-bottom"><a class="nav-btn" href="../">← ポータルへ戻る</a></div>
 </div>
 
 <script>
@@ -132,6 +138,7 @@ function makeBMSTable(info, mark, order) {
     return aIdx !== bIdx ? aIdx - bIdx : cellValue(a.title).toString().localeCompare(cellValue(b.title).toString());
   });
   
+  // ヘッダーのIR列数をデータ行の6項目に正確に合わせる (LR2IR, MinIR, BMS-IR, RianIR, STELLA, Kaleid)
   const rows = [
     `<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='6'>IR</td><td>タイトル + Mocha</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>`
   ];
