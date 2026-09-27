@@ -2,7 +2,8 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <title>PMSデータベース</title>
+  <!-- 初期状態はLoading...にしておく -->
+  <title>Loading...</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="bmstable" content="insane_pmsdatabase_header.json">
 
@@ -87,6 +88,7 @@ function showError(msg) {
   const err = document.getElementById("error-display");
   err.innerHTML = `<h3>⚠️ エラー</h3>${msg}`;
   err.style.display = "block";
+  document.title = "エラー"; // エラー発生時
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -97,7 +99,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const header = await (await fetch(metaTag.getAttribute("content"), { cache: "no-store" })).json();
     if (!header.data_url) return showError("data_url が指定されていません。");
 
-    if (header.name) document.title = header.name;
+    // header.json 内の name を取得して <title> を上書き
+    document.title = header.name || "BMS Database";
+
     const info = await (await fetch(header.data_url, { cache: "no-store" })).json();
 
     makeBMSTable(info, header.symbol || "", header.level_order || []);
@@ -138,7 +142,6 @@ function makeBMSTable(info, mark, order) {
     return aIdx !== bIdx ? aIdx - bIdx : cellValue(a.title).toString().localeCompare(cellValue(b.title).toString());
   });
   
-  // ヘッダーのIR列数をデータ行の6項目に正確に合わせる (LR2IR, MinIR, BMS-IR, RianIR, STELLA, Kaleid)
   const rows = [
     `<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='6'>IR</td><td>タイトル + Mocha</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>`
   ];
