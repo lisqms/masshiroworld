@@ -12,22 +12,20 @@
   <style>
     body { background: #f8f9fa; color: #333; font-family: sans-serif; margin: 15px; font-size: 14px; }
     a { color: #0056b3; text-decoration: none; }
-    a:hover { text-decoration: underline; }
     #error-display { display: none; background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; padding: 12px; margin-bottom: 15px; border-radius: 4px; }
+    
+    /* 検索バーのスタイル */
+    #search-box {
+      width: 100%; padding: 8px 12px; margin-bottom: 12px; box-sizing: border-box;
+      border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;
+    }
+
     .tableflame { width: 100%; overflow-x: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
     th, td { border: 1px solid #e9ecef; padding: 6px 8px; text-align: left; }
     
-    /* 2. ヘッダー行の固定（Sticky Header） */
-    .header-row {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: #343a40;
-      color: #fff;
-      font-weight: bold;
-      text-align: center;
-    }
+    /* ヘッダー固定 (Sticky Header) */
+    .header-row { position: sticky; top: 0; z-index: 10; background: #343a40; color: #fff; font-weight: bold; text-align: center; }
     
     .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; }
     .tr_separate td { padding: 8px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; }
@@ -42,42 +40,35 @@
     .total-rate-blue { color: #0d6efd; }
     .total-rate-blue-bold { color: #0d6efd; font-weight: bold; }
     
-    /* ポータルへ戻るボタン */
-    .nav-bar { margin: 0 0 12px 0; text-align: left; }
+    /* ボタン */
+    .nav-bar { margin: 0 0 12px 0; }
     .nav-bar-bottom { margin-top: 15px; }
-    .nav-btn {
-      display: inline-block; padding: 6px 14px; background: #343a40; color: #fff !important;
-      border-radius: 4px; font-weight: bold; font-size: 13px; text-decoration: none;
-      transition: background 0.2s ease;
-    }
-    .nav-btn:hover { background: #495057; }
+    .nav-btn { display: inline-block; padding: 6px 14px; background: #343a40; color: #fff !important; border-radius: 4px; font-weight: bold; font-size: 13px; }
 
-    /* 3. ダークモード対応 (自動切替) */
+    /* ダークモード対応 */
     @media (prefers-color-scheme: dark) {
       body { background: #121212; color: #e0e0e0; }
-      .tableflame { background: #1e1e1e; border: 1px solid #333; box-shadow: none; }
+      #search-box { background: #2b2b2b; color: #fff; border-color: #444; }
+      .tableflame, .tr_normal:nth-child(even) { background: #1e1e1e; }
       th, td { border-color: #333; }
-      .tr_normal:nth-child(even) { background: #1e1e1e; }
       .tr_normal:nth-child(odd) { background: #252525; }
       .tr_normal:hover { background: #2c2c2c; }
       .tr_separate { background: #2a2d30; color: #fff; }
-      .tr_separate td { border-color: #444; }
-      a { color: #6ea8fe; }
+      a, .total-rate-blue, .total-rate-blue-bold { color: #6ea8fe; }
+      .total-rate-red, .total-rate-red-bold { color: #ea868f; }
       .nav-btn { background: #212529; border: 1px solid #444; }
-      .nav-btn:hover { background: #343a40; }
-      .total-rate-red-bold { color: #ea868f; }
-      .total-rate-red { color: #ea868f; }
-      .total-rate-blue { color: #6ea8fe; }
-      .total-rate-blue-bold { color: #6ea8fe; }
     }
   </style>
 </head>
 <body>
 
 <div id="container">
-  <!-- 1. 共通化（相対パス ../ でポータルへ戻る） -->
   <div class="nav-bar"><a class="nav-btn" href="../">← ポータルへ戻る</a></div>
   <div id="error-display"></div>
+  
+  <!-- 簡易検索窓 -->
+  <input type="text" id="search-box" placeholder="タイトル・アーティスト・差分・コメントで検索..." oninput="filterTable()">
+
   <div class="tableflame"><table id="table_int"></table></div>
   <div class="nav-bar nav-bar-bottom"><a class="nav-btn" href="../">← ポータルへ戻る</a></div>
 </div>
@@ -93,12 +84,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const metaTag = document.querySelector('meta[name="bmstable"]');
   if (!metaTag) return showError('&lt;meta name="bmstable"&gt; がありません。');
 
-  const headerPath = metaTag.getAttribute("content");
-
   try {
-    const headerRes = await fetch(headerPath, { cache: "no-store" });
+    const headerRes = await fetch(metaTag.getAttribute("content"), { cache: "no-store" });
     const header = await headerRes.json();
     if (!header.data_url) return showError("data_url が指定されていません。");
+
+    // ヘッダー名が設定されていればページタイトルに反映
+    if (header.name) document.title = header.name;
 
     const dataRes = await fetch(header.data_url, { cache: "no-store" });
     const info = await dataRes.json();
@@ -191,6 +183,21 @@ function makeBMSTable(info, mark, order) {
 
 function makeSep(mark, level, count) {
   return `<tr class='tr_separate'><td colspan='16'><b>${mark}${level} (${count}譜面)</b>  <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
+}
+
+// リアルタイム検索機能
+function filterTable() {
+  const query = document.getElementById("search-box").value.toLowerCase();
+  const rows = document.querySelectorAll("#table_int tr");
+  
+  rows.forEach(row => {
+    if (row.classList.contains("header-row") || row.classList.contains("tr_separate")) {
+      row.style.display = ""; // ヘッダー・区切り行は常に表示
+      return;
+    }
+    const text = row.innerText.toLowerCase();
+    row.style.display = text.includes(query) ? "" : "none";
+  });
 }
 </script>
 
