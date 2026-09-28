@@ -25,7 +25,7 @@
     table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
     th, td { border: 1px solid #e9ecef; padding: 2px; text-align: left; word-break: break-all; }
 
-    /* 固定列幅定義 */
+    /* 固定列幅定義（計16列） */
     col.c-lv { width: 55px; }
     col.c-sm { width: 65px; }
     col.c-ir { width: 50px; }
@@ -78,7 +78,7 @@
   <div id="error-display"></div>
   
   <div class="search-container">
-    <input type="text" id="search-box" placeholder="検索（2文字以上入力）...">
+    <input type="text" id="search-box" placeholder="検索（タイトル・難易度等 2文字以上入力）...">
     <span id="search-status"></span>
   </div>
 
@@ -181,7 +181,7 @@ function makeBMSTable(info, mark, order) {
       levelCount = 0;
       levelAnchorCount++;
       lastSepIdx = rows.length;
-      rows.push(""); // 区切り行用のプレースホルダー
+      rows.push("");
     }
     levelCount++;
 
@@ -228,7 +228,7 @@ function makeBMSTable(info, mark, order) {
         const a = document.createElement("a");
         a.href = "#" + row.id;
         a.textContent = label;
-        a.dataset.targetId = row.id; // 検索時の連動非表示用
+        a.dataset.targetId = row.id;
         fragment.appendChild(a);
       }
     });
@@ -249,9 +249,16 @@ function makeBMSTable(info, mark, order) {
       };
       sepRowMap.push(currentSep);
     } else if (row.classList.contains("tr_normal")) {
+      // 10列目（インデックス9：タイトル）以降のセルテキストのみを結合
+      let textContent = "";
+      const cells = row.children;
+      for (let i = 9; i < cells.length; i++) {
+        textContent += cells[i].textContent + " ";
+      }
+
       searchableRows.push({
         element: row,
-        text: row.textContent.toLowerCase(),
+        text: textContent.toLowerCase(),
         parentSep: currentSep
       });
     }
@@ -290,7 +297,6 @@ function setupSearch() {
         }
       });
 
-      // 検索結果に引っかからなかったレベルの見出しとジャンプボタンを自動非表示
       sepRowMap.forEach(s => {
         const hasMatch = s.matchCount > 0;
         s.element.classList.toggle("is-hidden", !hasMatch);
