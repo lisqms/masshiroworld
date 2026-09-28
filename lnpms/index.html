@@ -2,7 +2,6 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <!-- 初期状態はLoading...にしておく -->
   <title>Loading...</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="bmstable" content="header.json">
@@ -17,31 +16,36 @@
     #search-box:focus { border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
     #search-status { font-size: 12px; color: #6c757d; font-weight: bold; white-space: nowrap; }
 
-    .tableflame { width: 100%; overflow-x: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    th, td { border: 1px solid #e9ecef; padding: 6px 8px; text-align: left; white-space: nowrap; }
+    /* レベルジャンプ機能 */
+    #level-jump { margin-bottom: 12px; font-size: 13px; line-height: 1.8; }
+    #level-jump a { display: inline-block; margin: 0 4px 4px 0; padding: 2px 6px; background: #e9ecef; border: 1px solid #ced4da; border-radius: 3px; color: #333; }
+    #level-jump a:hover { background: #dee2e6; text-decoration: none; }
 
-    /* 長い文字列の折り返し調整 */
-    .tr_normal td:nth-child(10),
-    .tr_normal td:nth-child(11),
-    .tr_normal td:nth-child(12) {
-      white-space: normal;
-      min-width: 150px;
-      max-width: 280px;
-      word-wrap: break-word;
-      overflow-wrap: anywhere;
-    }
+    .tableflame { width: 100%; overflow-x: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+    th, td { border: 1px solid #e9ecef; padding: 2px; text-align: left; word-break: break-all; }
+
+    /* 固定列幅定義（計16列） */
+    col.c-lv { width: 55px; }
+    col.c-sm { width: 65px; }
+    col.c-ir { width: 50px; }
+    col.c-title { width: 220px; }
+    col.c-artist { width: 180px; }
+    col.c-diff { width: 150px; }
+    col.c-notes { width: 65px; }
+    col.c-total { width: 130px; }
+    col.c-memo { width: 120px; }
     
     .header-row { position: sticky; top: 0; z-index: 10; background: #343a40; color: #fff; font-weight: bold; text-align: center; }
-    .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; }
-    .tr_separate td { padding: 8px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; }
-    .tr_normal:nth-child(even) { background: #fff; }
-    .tr_normal:nth-child(odd) { background: #f8f9fa; }
+    
+    /* ヘッダー固定時の被り防止（ジャンプ時の位置ズレ補正） */
+    .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; scroll-margin-top: 35px; }
+    .tr_separate td { padding: 4px 2px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; }
     .tr_normal:hover { background: #e2e6ea; }
     .text-center { text-align: center; }
     .is-hidden { display: none !important; }
 
-    /* TOTAL増加率の色分け */
+    /* TOTAL増加率の表示色 */
     .total-rate-red-bold { color: #dc3545; font-weight: bold; }
     .total-rate-red { color: #dc3545; }
     .total-rate-blue { color: #0d6efd; }
@@ -51,14 +55,16 @@
     .nav-bar-bottom { margin-top: 15px; }
     .nav-btn { display: inline-block; padding: 6px 14px; background: #343a40; color: #fff !important; border-radius: 4px; font-weight: bold; font-size: 13px; }
 
+    /* ダークモード設定 */
     @media (prefers-color-scheme: dark) {
       body { background: #121212; color: #e0e0e0; }
       #search-box { background: #2b2b2b; color: #fff; border-color: #444; }
-      .tableflame, .tr_normal:nth-child(even) { background: #1e1e1e; }
+      #level-jump a { background: #2b2b2b; border-color: #444; color: #eee; }
+      #level-jump a:hover { background: #383838; }
+      .tableflame { background: #1e1e1e; }
       th, td { border-color: #333; }
-      .tr_normal:nth-child(odd) { background: #252525; }
       .tr_normal:hover { background: #2c2c2c; }
-      .tr_separate { background: #2a2d30; color: #fff; }
+      .tr_separate { background: #2a2d30; color: #fff; border-color: #444; }
       a, .total-rate-blue, .total-rate-blue-bold { color: #6ea8fe; }
       .total-rate-red, .total-rate-red-bold { color: #ea868f; }
       .nav-btn { background: #212529; border: 1px solid #444; }
@@ -72,99 +78,116 @@
   <div id="error-display"></div>
   
   <div class="search-container">
-    <input type="text" id="search-box" placeholder="検索（2文字以上入力）..." oninput="filterTable()">
+    <input type="text" id="search-box" placeholder="検索（2文字以上入力）...">
     <span id="search-status"></span>
   </div>
+
+  <div id="level-jump"></div>
 
   <div class="tableflame"><table id="table_int"></table></div>
   <div class="nav-bar nav-bar-bottom"><a class="nav-btn" href="../">← 戻る</a></div>
 </div>
 
 <script>
-let searchableRows = [], sepRowMap = [], searchTimer = null;
-const cellValue = v => v ?? "";
+let searchableRows = [], sepRowMap = [];
 
 function showError(msg) {
   const err = document.getElementById("error-display");
-  err.innerHTML = `<h3>⚠️ エラー</h3>${msg}`;
+  err.textContent = "";
+  
+  const h3 = document.createElement("h3");
+  h3.textContent = "⚠️ エラー";
+  err.appendChild(h3);
+  
+  const p = document.createElement("p");
+  p.textContent = msg;
+  err.appendChild(p);
+
   err.style.display = "block";
-  document.title = "エラー"; // エラー発生時
+  document.title = "エラー";
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
   const metaTag = document.querySelector('meta[name="bmstable"]');
-  if (!metaTag) return showError('&lt;meta name="bmstable"&gt; がありません。');
+  if (!metaTag) return showError('<meta name="bmstable"> がありません。');
 
   try {
     const header = await (await fetch(metaTag.getAttribute("content"), { cache: "no-store" })).json();
     if (!header.data_url) return showError("data_url が指定されていません。");
 
-    // header.json 内の name を取得して <title> を上書き
     document.title = header.name || "BMS Database";
-
     const info = await (await fetch(header.data_url, { cache: "no-store" })).json();
 
     makeBMSTable(info, header.symbol || "", header.level_order || []);
-  } catch (e) {
+    setupSearch();
+  } catch {
     showError("データの読み込みに失敗しました。");
   }
 });
 
 function getTotalDisplay(item) {
   const total = Number(item.total), notes = Number(item.notes);
-  if (!total || !notes) return cellValue(item.total);
+  if (!total || !notes || isNaN(total) || isNaN(notes)) return item.total ?? "";
   
   const rate = total / notes;
-  const cls = rate <= 0.10 ? "total-rate-red-bold" : 
-              rate < 0.20  ? "total-rate-red" : 
+  const cls = rate <= 0.10 ? "total-rate-red-bold" :
+              rate < 0.20  ? "total-rate-red" :
               rate < 0.40  ? "total-rate-blue" : "total-rate-blue-bold";
 
-  return `<span class="${cls}">${total} (${Math.round(rate * 10000) / 100}%/note)</span>`;
+  return `<span class="${cls}">${total} (${rate.toFixed(3)}%/note)</span>`;
 }
 
 function getVideoLink(item) {
-  if (item.video1) return `<a href='http://www.nicovideo.jp/watch/sm${item.video1}' target='_blank'>ニコ</a>`;
-  if (item.video2) return `<a href='http://www.youtube.com/watch?v=${item.video2}' target='_blank'>YT</a>`;
-  if (item.video3) return `<a href='http://vimeo.com/${item.video3}' target='_blank'>Vimeo</a>`;
-  return "";
+  const links = [];
+  if (item.video1) links.push(`<a href='http://www.nicovideo.jp/watch/sm${item.video1}' target='_blank'>ニコ</a>`);
+  if (item.video2) links.push(`<a href='http://www.youtube.com/watch?v=${item.video2}' target='_blank'>YT</a>`);
+  if (item.video3) links.push(`<a href='http://vimeo.com/${item.video3}' target='_blank'>Vimeo</a>`);
+  return links.join(" ");
 }
 
 function makeBMSTable(info, mark, order) {
   const table = document.getElementById("table_int");
   if (!table) return;
 
-  const orderMap = {};
-  order.forEach((lvl, idx) => orderMap[lvl.toString()] = idx);
+  const orderMap = Object.fromEntries(order.map((lvl, i) => [String(lvl), i]));
 
   info.sort((a, b) => {
-    const aIdx = orderMap.hasOwnProperty(a.level) ? orderMap[a.level] : 99999;
-    const bIdx = orderMap.hasOwnProperty(b.level) ? orderMap[b.level] : 99999;
-    return aIdx !== bIdx ? aIdx - bIdx : cellValue(a.title).toString().localeCompare(cellValue(b.title).toString());
+    const aIdx = orderMap[String(a.level)] ?? 99999;
+    const bIdx = orderMap[String(b.level)] ?? 99999;
+    return aIdx !== bIdx ? aIdx - bIdx : (a.title || "").localeCompare(b.title || "");
   });
   
   const rows = [
+    `<colgroup>
+      <col class="c-lv"><col class="c-sm"><col class="c-sm">
+      <col class="c-ir"><col class="c-ir"><col class="c-ir"><col class="c-ir"><col class="c-ir"><col class="c-ir">
+      <col class="c-title"><col class="c-artist"><col class="c-diff">
+      <col class="c-notes"><col class="c-total"><col class="c-memo"><col class="c-memo">
+    </colgroup>`,
     `<tr class='header-row'><td>LV</td><td>動画</td><td>譜面</td><td colspan='6'>IR</td><td>タイトル + Mocha</td><td>本体</td><td>差分</td><td>Notes</td><td>TOTAL(+増加率)</td><td>memo</td><td>コメント</td></tr>`
   ];
   
-  let currentLevel = null, levelCount = 0, sepIndex = -1;
+  let currentLevel = null, levelCount = 0, lastSepIdx = -1;
+  let levelAnchorCount = 0;
 
   for (const item of info) {
-    const itemLevel = cellValue(item.level).toString();
+    const itemLevel = item.level ?? "";
 
     if (currentLevel !== itemLevel) {
-      if (sepIndex >= 0) rows[sepIndex] = makeSep(mark, currentLevel, levelCount);
+      if (lastSepIdx !== -1) {
+        rows[lastSepIdx] = `<tr class='tr_separate' id='level-${levelAnchorCount}'><td colspan='16'><b>${mark}${currentLevel} (${levelCount}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
+      }
       currentLevel = itemLevel;
       levelCount = 0;
-      sepIndex = rows.length;
+      levelAnchorCount++;
+      lastSepIdx = rows.length;
       rows.push("");
     }
     levelCount++;
 
-    const artistStr = item.url ? `<a href='${item.url}'>${cellValue(item.artist || item.url)}</a>` : cellValue(item.artist);
-    const packStr = (item.name_pack || item.url_pack) 
-      ? `<br />(${item.url_pack ? `<a href='${item.url_pack}'>${cellValue(item.name_pack || item.url_pack)}</a>` : item.name_pack})` 
-      : "";
-    const diffStr = item.url_diff ? `<a href='${item.url_diff}'>${cellValue(item.name_diff || item.url_diff)}</a>` : cellValue(item.name_diff);
+    const artist = item.artist || item.url || "";
+    const pack = item.name_pack || item.url_pack || "";
+    const diff = item.name_diff || item.url_diff || "";
 
     rows.push(`<tr class='tr_normal'>
       <td class='text-center'>${mark}${currentLevel}</td>
@@ -176,82 +199,113 @@ function makeBMSTable(info, mark, order) {
       <td class='text-center'><a href='https://rianir.link/pages/ranking/ranking.php?sha256=${item.sha256}' target='_blank'>RianIR</a></td>
       <td class='text-center'><a href='https://ir.stellabms.xyz/charts/${item.md5}' target='_blank'>STELLA</a></td>
       <td class='text-center'><a href='https://kaleidir.com/charts/${item.sha256}' target='_blank'>Kaleid</a></td>
-      <td><a href='https://mocha-repository.info/song.php?sha256=${item.sha256}' target='_blank'>${cellValue(item.title)}</a></td>
-      <td>${artistStr}${packStr}</td>
-      <td>${diffStr}</td>
-      <td class='text-center'>${cellValue(item.notes)}</td>
+      <td><a href='https://mocha-repository.info/song.php?sha256=${item.sha256}' target='_blank'>${item.title ?? ""}</a></td>
+      <td>${item.url ? `<a href='${item.url}'>${artist}</a>` : artist}${pack ? `<br />(${item.url_pack ? `<a href='${item.url_pack}'>${pack}</a>` : pack})` : ""}</td>
+      <td>${item.url_diff ? `<a href='${item.url_diff}'>${diff}</a>` : diff}</td>
+      <td class='text-center'>${item.notes ?? ""}</td>
       <td>${getTotalDisplay(item)}</td>
-      <td>${cellValue(item.memo)}</td>
-      <td>${cellValue(item.comment)}</td>
+      <td>${item.memo ?? ""}</td>
+      <td>${item.comment ?? ""}</td>
     </tr>`);
   }
 
-  if (sepIndex >= 0) rows[sepIndex] = makeSep(mark, currentLevel, levelCount);
+  if (lastSepIdx !== -1) {
+    rows[lastSepIdx] = `<tr class='tr_separate' id='level-${levelAnchorCount}'><td colspan='16'><b>${mark}${currentLevel} (${levelCount}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
+  }
+
   table.innerHTML = rows.join("");
 
-  cacheSearchData();
-}
+  // レベルジャンプリンク生成
+  const levelJump = document.getElementById("level-jump");
+  if (levelJump) {
+    levelJump.textContent = "";
+    const fragment = document.createDocumentFragment();
+    
+    table.querySelectorAll(".tr_separate[id]").forEach(row => {
+      const bTag = row.querySelector("b");
+      if (bTag) {
+        const label = bTag.textContent.replace(/\s*\(\d+譜面\).*$/, "");
+        const a = document.createElement("a");
+        a.href = "#" + row.id;
+        a.textContent = label;
+        a.dataset.targetId = row.id;
+        fragment.appendChild(a);
+      }
+    });
+    levelJump.appendChild(fragment);
+  }
 
-function makeSep(mark, level, count) {
-  return `<tr class='tr_separate'><td colspan='16'><b>${mark}${level} (${count}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
-}
-
-function cacheSearchData() {
+  // 検索用データのマップ初期化
   searchableRows = [];
   sepRowMap = [];
   let currentSep = null;
 
-  document.querySelectorAll("#table_int tr").forEach(row => {
+  for (const row of table.rows) {
     if (row.classList.contains("tr_separate")) {
-      currentSep = { element: row, matchCount: 0 };
+      currentSep = { 
+        element: row, 
+        btnElement: levelJump ? levelJump.querySelector(`a[data-target-id="${row.id}"]`) : null,
+        matchCount: 0 
+      };
       sepRowMap.push(currentSep);
     } else if (row.classList.contains("tr_normal")) {
+      // 10列目（インデックス9：タイトル）以降のセルテキストのみを結合
+      let textContent = "";
+      const cells = row.children;
+      for (let i = 9; i < cells.length; i++) {
+        textContent += cells[i].textContent + " ";
+      }
+
       searchableRows.push({
         element: row,
-        text: row.textContent.toLowerCase(),
+        text: textContent.toLowerCase(),
         parentSep: currentSep
       });
     }
-  });
+  }
 }
 
-function filterTable() {
-  clearTimeout(searchTimer);
-  
-  searchTimer = setTimeout(() => {
-    const query = document.getElementById("search-box").value.toLowerCase().trim();
-    const statusEl = document.getElementById("search-status");
+function setupSearch() {
+  const searchBox = document.getElementById("search-box");
+  const statusEl = document.getElementById("search-status");
+  let timer = null;
 
-    if (query.length === 1) {
-      statusEl.textContent = "2文字以上入力してください";
-      searchableRows.forEach(i => i.element.classList.remove("is-hidden"));
-      sepRowMap.forEach(s => s.element.classList.remove("is-hidden"));
-      return;
-    }
+  searchBox.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const query = searchBox.value.toLowerCase().trim();
 
-    let totalMatches = 0;
-    const isBlank = query.length === 0;
-
-    sepRowMap.forEach(s => s.matchCount = 0);
-
-    for (let i = 0; i < searchableRows.length; i++) {
-      const item = searchableRows[i];
-      const isMatch = isBlank || item.text.includes(query);
-      
-      item.element.classList.toggle("is-hidden", !isMatch);
-
-      if (isMatch) {
-        totalMatches++;
-        if (item.parentSep) item.parentSep.matchCount++;
+      if (query.length < 2) {
+        statusEl.textContent = query.length === 1 ? "2文字以上入力してください" : "";
+        searchableRows.forEach(r => r.element.classList.remove("is-hidden"));
+        sepRowMap.forEach(s => {
+          s.element.classList.remove("is-hidden");
+          if (s.btnElement) s.btnElement.classList.remove("is-hidden");
+        });
+        return;
       }
-    }
 
-    sepRowMap.forEach(s => {
-      s.element.classList.toggle("is-hidden", !isBlank && s.matchCount === 0);
-    });
+      let totalMatches = 0;
+      sepRowMap.forEach(s => s.matchCount = 0);
 
-    statusEl.textContent = isBlank ? "" : `${totalMatches} 件表示中`;
-  }, 250);
+      searchableRows.forEach(item => {
+        const isMatch = item.text.includes(query);
+        item.element.classList.toggle("is-hidden", !isMatch);
+        if (isMatch) {
+          totalMatches++;
+          if (item.parentSep) item.parentSep.matchCount++;
+        }
+      });
+
+      sepRowMap.forEach(s => {
+        const hasMatch = s.matchCount > 0;
+        s.element.classList.toggle("is-hidden", !hasMatch);
+        if (s.btnElement) s.btnElement.classList.toggle("is-hidden", !hasMatch);
+      });
+
+      statusEl.textContent = `${totalMatches} 件表示中`;
+    }, 200);
+  });
 }
 </script>
 
