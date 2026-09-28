@@ -16,10 +16,16 @@
     #search-box:focus { border-color: #80bdff; box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25); }
     #search-status { font-size: 12px; color: #6c757d; font-weight: bold; white-space: nowrap; }
 
+    /* レベルジャンプ機能 */
+    #level-jump { margin-bottom: 12px; font-size: 13px; line-height: 1.8; }
+    #level-jump a { display: inline-block; margin: 0 4px 4px 0; padding: 2px 6px; background: #e9ecef; border: 1px solid #ced4da; border-radius: 3px; color: #333; }
+    #level-jump a:hover { background: #dee2e6; text-decoration: none; }
+
     .tableflame { width: 100%; overflow-x: auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
     table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
     th, td { border: 1px solid #e9ecef; padding: 2px; text-align: left; word-break: break-all; }
 
+    /* 固定列幅定義 */
     col.c-lv { width: 55px; }
     col.c-sm { width: 65px; }
     col.c-ir { width: 50px; }
@@ -31,12 +37,15 @@
     col.c-memo { width: 120px; }
     
     .header-row { position: sticky; top: 0; z-index: 10; background: #343a40; color: #fff; font-weight: bold; text-align: center; }
-    .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; }
+    
+    /* ヘッダー固定時の被り防止（ジャンプ時の位置ズレ補正） */
+    .tr_separate { background: #e9ecef; font-weight: bold; font-size: 14px; text-align: center; scroll-margin-top: 35px; }
     .tr_separate td { padding: 4px 2px; border-width: 2px 0; border-style: solid; border-color: #dee2e6; }
     .tr_normal:hover { background: #e2e6ea; }
     .text-center { text-align: center; }
     .is-hidden { display: none !important; }
 
+    /* TOTAL増加率の表示色 */
     .total-rate-red-bold { color: #dc3545; font-weight: bold; }
     .total-rate-red { color: #dc3545; }
     .total-rate-blue { color: #0d6efd; }
@@ -46,13 +55,16 @@
     .nav-bar-bottom { margin-top: 15px; }
     .nav-btn { display: inline-block; padding: 6px 14px; background: #343a40; color: #fff !important; border-radius: 4px; font-weight: bold; font-size: 13px; }
 
+    /* ダークモード設定 */
     @media (prefers-color-scheme: dark) {
       body { background: #121212; color: #e0e0e0; }
       #search-box { background: #2b2b2b; color: #fff; border-color: #444; }
+      #level-jump a { background: #2b2b2b; border-color: #444; color: #eee; }
+      #level-jump a:hover { background: #383838; }
       .tableflame { background: #1e1e1e; }
       th, td { border-color: #333; }
       .tr_normal:hover { background: #2c2c2c; }
-      .tr_separate { background: #2a2d30; color: #fff; }
+      .tr_separate { background: #2a2d30; color: #fff; border-color: #444; }
       a, .total-rate-blue, .total-rate-blue-bold { color: #6ea8fe; }
       .total-rate-red, .total-rate-red-bold { color: #ea868f; }
       .nav-btn { background: #212529; border: 1px solid #444; }
@@ -69,6 +81,8 @@
     <input type="text" id="search-box" placeholder="検索（2文字以上入力）...">
     <span id="search-status"></span>
   </div>
+
+  <div id="level-jump"></div>
 
   <div class="tableflame"><table id="table_int"></table></div>
   <div class="nav-bar nav-bar-bottom"><a class="nav-btn" href="../">← 戻る</a></div>
@@ -135,11 +149,11 @@ function makeBMSTable(info, mark, order) {
   const table = document.getElementById("table_int");
   if (!table) return;
 
-  const orderMap = Object.fromEntries(order.map((lvl, i) => [lvl, i]));
+  const orderMap = Object.fromEntries(order.map((lvl, i) => [String(lvl), i]));
 
   info.sort((a, b) => {
-    const aIdx = orderMap[a.level] ?? 99999;
-    const bIdx = orderMap[b.level] ?? 99999;
+    const aIdx = orderMap[String(a.level)] ?? 99999;
+    const bIdx = orderMap[String(b.level)] ?? 99999;
     return aIdx !== bIdx ? aIdx - bIdx : (a.title || "").localeCompare(b.title || "");
   });
   
@@ -154,18 +168,20 @@ function makeBMSTable(info, mark, order) {
   ];
   
   let currentLevel = null, levelCount = 0, lastSepIdx = -1;
+  let levelAnchorCount = 0;
 
   for (const item of info) {
     const itemLevel = item.level ?? "";
 
     if (currentLevel !== itemLevel) {
       if (lastSepIdx !== -1) {
-        rows[lastSepIdx] = `<tr class='tr_separate'><td colspan='16'><b>${mark}${currentLevel} (${levelCount}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
+        rows[lastSepIdx] = `<tr class='tr_separate' id='level-${levelAnchorCount}'><td colspan='16'><b>${mark}${currentLevel} (${levelCount}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
       }
       currentLevel = itemLevel;
       levelCount = 0;
+      levelAnchorCount++;
       lastSepIdx = rows.length;
-      rows.push("");
+      rows.push(""); // 区切り行用のプレースホルダー
     }
     levelCount++;
 
@@ -194,18 +210,43 @@ function makeBMSTable(info, mark, order) {
   }
 
   if (lastSepIdx !== -1) {
-    rows[lastSepIdx] = `<tr class='tr_separate'><td colspan='16'><b>${mark}${currentLevel} (${levelCount}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
+    rows[lastSepIdx] = `<tr class='tr_separate' id='level-${levelAnchorCount}'><td colspan='16'><b>${mark}${currentLevel} (${levelCount}譜面)</b> <a href='#container' style='font-size:12px; font-weight:normal;'>▲TOP</a></td></tr>`;
   }
 
   table.innerHTML = rows.join("");
 
+  // レベルジャンプリンク生成
+  const levelJump = document.getElementById("level-jump");
+  if (levelJump) {
+    levelJump.textContent = "";
+    const fragment = document.createDocumentFragment();
+    
+    table.querySelectorAll(".tr_separate[id]").forEach(row => {
+      const bTag = row.querySelector("b");
+      if (bTag) {
+        const label = bTag.textContent.replace(/\s*\(\d+譜面\).*$/, "");
+        const a = document.createElement("a");
+        a.href = "#" + row.id;
+        a.textContent = label;
+        a.dataset.targetId = row.id; // 検索時の連動非表示用
+        fragment.appendChild(a);
+      }
+    });
+    levelJump.appendChild(fragment);
+  }
+
+  // 検索用データのマップ初期化
   searchableRows = [];
   sepRowMap = [];
   let currentSep = null;
 
   for (const row of table.rows) {
     if (row.classList.contains("tr_separate")) {
-      currentSep = { element: row, matchCount: 0 };
+      currentSep = { 
+        element: row, 
+        btnElement: levelJump ? levelJump.querySelector(`a[data-target-id="${row.id}"]`) : null,
+        matchCount: 0 
+      };
       sepRowMap.push(currentSep);
     } else if (row.classList.contains("tr_normal")) {
       searchableRows.push({
@@ -230,7 +271,10 @@ function setupSearch() {
       if (query.length < 2) {
         statusEl.textContent = query.length === 1 ? "2文字以上入力してください" : "";
         searchableRows.forEach(r => r.element.classList.remove("is-hidden"));
-        sepRowMap.forEach(s => s.element.classList.remove("is-hidden"));
+        sepRowMap.forEach(s => {
+          s.element.classList.remove("is-hidden");
+          if (s.btnElement) s.btnElement.classList.remove("is-hidden");
+        });
         return;
       }
 
@@ -246,8 +290,11 @@ function setupSearch() {
         }
       });
 
+      // 検索結果に引っかからなかったレベルの見出しとジャンプボタンを自動非表示
       sepRowMap.forEach(s => {
-        s.element.classList.toggle("is-hidden", s.matchCount === 0);
+        const hasMatch = s.matchCount > 0;
+        s.element.classList.toggle("is-hidden", !hasMatch);
+        if (s.btnElement) s.btnElement.classList.toggle("is-hidden", !hasMatch);
       });
 
       statusEl.textContent = `${totalMatches} 件表示中`;
